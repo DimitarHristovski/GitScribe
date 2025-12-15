@@ -47,6 +47,8 @@ export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<Age
         
         console.log('[RepoDiscovery] Validated', validatedRepos.length, 'repositories');
       } else {
+        // Mark as completed even with error so workflow can handle it properly
+        updates.completedSteps = new Set([AgentStep.DISCOVERY]);
         updates.errors = new Map([['discovery', 'No valid repositories found']]);
         console.warn('[RepoDiscovery] No valid repositories after validation');
       }
@@ -64,16 +66,22 @@ export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<Age
           };
           console.log('[RepoDiscovery] Discovered', userRepos.length, 'user repositories');
         } else {
+          // Mark as completed even with error so workflow can handle it properly
+          updates.completedSteps = new Set([AgentStep.DISCOVERY]);
           updates.errors = new Map([['discovery', 'No repositories found']]);
           console.warn('[RepoDiscovery] No repositories found');
         }
       } catch (error: any) {
         console.error('[RepoDiscovery] Failed to fetch user repos:', error);
+        // Mark as completed even with error so workflow can handle it properly
+        updates.completedSteps = new Set([AgentStep.DISCOVERY]);
         updates.errors = new Map([['discovery', error.message || 'Failed to discover repositories']]);
       }
     }
   } catch (error: any) {
     console.error('[RepoDiscovery] Error:', error);
+    // Mark as completed even with error so workflow can handle it properly
+    updates.completedSteps = new Set([AgentStep.DISCOVERY]);
     updates.errors = new Map([['discovery', error.message || 'Discovery failed']]);
   }
 

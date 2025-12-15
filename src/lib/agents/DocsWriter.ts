@@ -35,6 +35,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
   const total = state.documentationPlans.size;
 
   for (const [repoFullName, plan] of state.documentationPlans.entries()) {
+    let baseMarkdown = '';
     try {
       current++;
       updates.progress = {
@@ -50,14 +51,20 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
       // Generate base markdown documentation (for reference)
       const githubUrl = plan.repo.htmlUrl || `${plan.repo.owner}/${plan.repo.name}`;
       
-      const baseMarkdown = await generateDocumentationFromGitHub(githubUrl, {
-        format: 'markdown',
-        includeCode: true,
-        includeProps: true,
-        includeExamples: true,
-        depth: plan.style === 'comprehensive' ? 'comprehensive' : 
-               plan.style === 'technical' ? 'detailed' : 'basic',
-      });
+      try {
+        baseMarkdown = await generateDocumentationFromGitHub(githubUrl, {
+          format: 'markdown',
+          includeCode: true,
+          includeProps: true,
+          includeExamples: true,
+          depth: plan.style === 'comprehensive' ? 'comprehensive' : 
+                 plan.style === 'technical' ? 'detailed' : 'basic',
+        });
+        console.log(`[DocsWriter] Base markdown generated for ${repoFullName}, length: ${baseMarkdown.length}`);
+      } catch (baseError: any) {
+        console.error(`[DocsWriter] Failed to generate base markdown for ${repoFullName}:`, baseError);
+        baseMarkdown = `# ${plan.repo.name}\n\n${plan.repo.description || 'Documentation for ' + repoFullName}\n\n*Note: Base documentation generation failed. Please check repository access.*`;
+      }
 
       // Generate documentation sections in different formats
       const sections: DocSection[] = [];
@@ -134,6 +141,28 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
         const firstSection = sections[0];
         const content = firstSection.markdown || firstSection.html || firstSection.openapiYaml || '';
         docs.set(repoFullName, content);
+      } else {
+        // If no sections were generated, use baseMarkdown as fallback
+        console.warn(`[DocsWriter] No sections generated for ${repoFullName}, using baseMarkdown as fallback`);
+        if (baseMarkdown && baseMarkdown.trim().length > 0) {
+          // Create a fallback section with baseMarkdown
+          const fallbackSection: DocSection = {
+            id: `fallback_${Date.now()}`,
+            type: selectedSectionTypes[0] || 'README',
+            format: selectedFormats[0] || 'markdown',
+            title: 'Documentation',
+            markdown: baseMarkdown,
+          };
+          sections.push(fallbackSection);
+          generatedDocs.sections = sections;
+          generatedDocsMap.set(repoFullName, generatedDocs);
+          docs.set(repoFullName, baseMarkdown);
+          console.log(`[DocsWriter] Using baseMarkdown fallback for ${repoFullName}`);
+        } else {
+          console.error(`[DocsWriter] No documentation generated for ${repoFullName} - baseMarkdown is also empty`);
+          // Still create an empty entry so the workflow knows we tried
+          docs.set(repoFullName, `# ${plan.repo.name}\n\n*Documentation generation failed. Please check the console for errors.*`);
+        }
       }
     } catch (error: any) {
       console.error(`[DocsWriter] Error generating docs for ${repoFullName}:`, error);
@@ -154,6 +183,19 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
   };
 
   console.log(`[DocsWriter] Completed generation for ${docs.size} repositories`);
+  console.log(`[DocsWriter] Generated docs map size: ${docs.size}, Full docs map size: ${generatedDocsMap.size}`);
+  
+  if (docs.size === 0 && generatedDocsMap.size === 0) {
+    console.error('[DocsWriter] WARNING: No documentation was generated for any repository!');
+    console.error('[DocsWriter] State check:', {
+      hasDocumentationPlans: !!state.documentationPlans && state.documentationPlans.size > 0,
+      plansCount: state.documentationPlans?.size || 0,
+      selectedFormats: selectedFormats,
+      selectedSectionTypes: selectedSectionTypes,
+      errors: Array.from(updates.errors?.entries() || []),
+    });
+  }
+  
   return updates;
 }
 

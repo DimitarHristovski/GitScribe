@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, RefreshCw, Bell, BellOff, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers } from 'lucide-react';
+import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, RefreshCw, Bell, BellOff, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save, FolderTree, Award, Copy, ArrowRight } from 'lucide-react';
 import Assistant from '../components/Assistant';
 import MultiRepoSelector from '../components/MultiRepoSelector';
 import AgentWorkflow from '../components/AgentWorkflow';
@@ -7,8 +7,9 @@ import Footer from '../components/Footer';
 import { generateDocumentationFromGitHub, exportDocumentation } from '../lib/documentation-writer';
 import { parseGitHubUrl, setGitHubToken as saveGitHubToken, getGitHubToken, SimpleRepo, createOrUpdateFile, getLatestCommitSha, getCommitInfo } from '../lib/github-service';
 import { setOpenAIApiKey, getOpenAIApiKey } from '../lib/langchain-service';
-import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage } from '../types/core';
+import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage, RepoQualityReport, RepoQualityMetric, FolderRefactorProposal, RefactorMove } from '../types/core';
 import { useTranslation } from '../lib/translations';
+import { AgentState } from '../lib/agents/types';
 
 interface DocumentationEditorProps {
   onBack: () => void;
@@ -53,6 +54,13 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     const saved = localStorage.getItem('selectedLanguage');
     return (saved as DocLanguage) || 'en';
   });
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editedDocumentation, setEditedDocumentation] = useState<string>('');
+  const [workflowState, setWorkflowState] = useState<AgentState | null>(null);
+  const [showQualityScoresModal, setShowQualityScoresModal] = useState<boolean>(false);
+  const [showBadgesModal, setShowBadgesModal] = useState<boolean>(false);
+  const [showRefactorProposalsModal, setShowRefactorProposalsModal] = useState<boolean>(false);
+  const [showExportFormatDialog, setShowExportFormatDialog] = useState<boolean>(false);
 
   // Save language preference to localStorage
   useEffect(() => {
@@ -234,17 +242,25 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     format: DocOutputFormat,
     sectionType: DocSectionType
   ) => {
+    console.log(`[updateDocumentationDisplay] Updating for ${repoFullName}, format: ${format}, section: ${sectionType}`);
+    
     const fullDocs = repoDocumentationsFull.get(repoFullName);
-    if (fullDocs) {
+    console.log(`[updateDocumentationDisplay] Full docs available: ${!!fullDocs}, sections: ${fullDocs?.sections.length || 0}`);
+    
+    if (fullDocs && fullDocs.sections.length > 0) {
       // Find the matching section
       const section = fullDocs.sections.find(
         s => s.format === format && s.type === sectionType
       );
       
+      console.log(`[updateDocumentationDisplay] Matching section found: ${!!section}`);
+      
       if (section) {
         // Get the content based on format
         const content = section.markdown || section.html || section.openapiYaml || '';
+        console.log(`[updateDocumentationDisplay] Setting content from section, length: ${content.length}`);
         setDocumentation(content);
+        return;
       } else {
         // Fallback to first available section or markdown
         const fallbackSection = fullDocs.sections.find(s => s.format === format) ||
@@ -252,15 +268,20 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                                 fullDocs.sections[0];
         if (fallbackSection) {
           const content = fallbackSection.markdown || fallbackSection.html || fallbackSection.openapiYaml || '';
+          console.log(`[updateDocumentationDisplay] Using fallback section, length: ${content.length}`);
           setDocumentation(content);
+          return;
         }
       }
+    }
+    
+    // Fallback to simple markdown map
+    const simpleDoc = repoDocumentations.get(repoFullName);
+    console.log(`[updateDocumentationDisplay] Using simple doc, available: ${!!simpleDoc}, length: ${simpleDoc?.length || 0}`);
+    if (simpleDoc) {
+      setDocumentation(simpleDoc);
     } else {
-      // Fallback to simple markdown map
-      const simpleDoc = repoDocumentations.get(repoFullName);
-      if (simpleDoc) {
-        setDocumentation(simpleDoc);
-      }
+      console.warn(`[updateDocumentationDisplay] No documentation found for ${repoFullName}`);
     }
   };
 
@@ -287,6 +308,11 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   };
 
   const handleCommitToRepos = async () => {
+    // Save any unsaved changes first
+    if (isEditing) {
+      handleSaveDocumentation();
+    }
+    
     if (selectedRepos.length === 0) {
       setError(t('noRepositoriesSelected'));
       return;
@@ -365,15 +391,171 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     }
   };
 
+  // Save documentation updates (used by both manual editing and AI Assistant)
+  const saveDocumentationUpdate = (updatedDoc: string, source: 'manual' | 'assistant' = 'manual') => {
+    setDocumentation(updatedDoc);
+    
+    // If editing manually, exit edit mode
+    if (source === 'manual' && isEditing) {
+      setIsEditing(false);
+    }
+    
+    // Update the repository documentation maps
+    const currentRepo = activeTab !== 'combined' ? activeTab : selectedRepos[0]?.fullName;
+    if (currentRepo) {
+      // Update simple markdown map
+      setRepoDocumentations(prev => {
+        const newMap = new Map(prev);
+        newMap.set(currentRepo, updatedDoc);
+        console.log(`[DocumentationEditor] Updated repoDocumentations for ${currentRepo}`);
+        return newMap;
+      });
+      
+      // Also update full docs if available
+      setRepoDocumentationsFull(prev => {
+        const newMap = new Map(prev);
+        const fullDocs = prev.get(currentRepo);
+        if (fullDocs) {
+          // Update the matching section
+          const updatedSections = fullDocs.sections.map(section => {
+            if (section.format === selectedFormat && section.type === selectedSectionType) {
+              if (selectedFormat === 'openapi') {
+                return { ...section, openapiYaml: updatedDoc };
+              } else if (selectedFormat === 'html') {
+                return { ...section, html: updatedDoc };
+              } else {
+                return { ...section, markdown: updatedDoc };
+              }
+            }
+            return section;
+          });
+          
+          newMap.set(currentRepo, {
+            ...fullDocs,
+            sections: updatedSections,
+          });
+          console.log(`[DocumentationEditor] Updated repoDocumentationsFull for ${currentRepo}, format: ${selectedFormat}, section: ${selectedSectionType}`);
+        } else {
+          // If no full docs exist, create a basic entry
+          console.log(`[DocumentationEditor] No full docs found for ${currentRepo}, creating basic entry`);
+        }
+        return newMap;
+      });
+    } else {
+      // In single repo mode without selected repos, just update the documentation state
+      console.log('[DocumentationEditor] No current repo found, updating documentation state only');
+    }
+    
+    // Mark as saved (no unsaved changes after AI assistant updates)
+    if (source === 'assistant') {
+      setHasUnsavedChanges(false);
+    } else {
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  // Save edited documentation (manual editing)
+  const handleSaveDocumentation = () => {
+    if (isEditing && editedDocumentation !== documentation) {
+      saveDocumentationUpdate(editedDocumentation, 'manual');
+    }
+  };
+
+  // Handle AI Assistant documentation updates
+  const handleAssistantUpdate = (updatedDocumentation: string) => {
+    console.log('[DocumentationEditor] Assistant update received, saving to repository maps...');
+    saveDocumentationUpdate(updatedDocumentation, 'assistant');
+    console.log('[DocumentationEditor] Assistant update saved successfully');
+  };
+
   const handleExport = () => {
+    // Save any unsaved changes first
+    if (isEditing) {
+      handleSaveDocumentation();
+    }
+    
+    if (!documentation) return;
+
+    // Show format selection dialog
+    setShowExportFormatDialog(true);
+  };
+
+  const handleExportWithFormat = async (format: 'md' | 'pdf' | 'html' | 'txt') => {
     if (!documentation) return;
 
     const source = githubUrl;
-    const filename = source
-      ? `documentation-${source.split('/').pop() || 'source'}.md`
-      : 'documentation.md';
+    const baseFilename = source
+      ? `documentation-${source.split('/').pop() || 'source'}`
+      : 'documentation';
 
-    exportDocumentation(documentation, filename);
+    switch (format) {
+      case 'md':
+        exportDocumentation(documentation, `${baseFilename}.md`);
+        break;
+      case 'txt':
+        exportDocumentation(documentation, `${baseFilename}.txt`);
+        break;
+      case 'html':
+        // Convert markdown to HTML (basic conversion)
+        const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+    h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 16px; }
+    code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+    pre { background-color: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
+    pre code { background-color: transparent; padding: 0; }
+  </style>
+</head>
+<body>
+${documentation.split('\n').map(line => {
+  // Basic markdown to HTML conversion
+  if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`;
+  if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`;
+  if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`;
+  if (line.startsWith('#### ')) return `<h4>${line.substring(5)}</h4>`;
+  if (line.startsWith('```')) return line.includes('```') ? '</pre>' : '<pre>';
+  if (line.trim() === '') return '<br>';
+  return `<p>${line.replace(/`([^`]+)`/g, '<code>$1</code>')}</p>`;
+}).join('\n')}
+</body>
+</html>`;
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const htmlUrl = URL.createObjectURL(htmlBlob);
+        const htmlA = document.createElement('a');
+        htmlA.href = htmlUrl;
+        htmlA.download = `${baseFilename}.html`;
+        document.body.appendChild(htmlA);
+        htmlA.click();
+        document.body.removeChild(htmlA);
+        URL.revokeObjectURL(htmlUrl);
+        break;
+      case 'pdf':
+        try {
+          // Use the PDF exporter from the workflow
+          const { exportToPDF, downloadPDF } = await import('../lib/pdf-exporter');
+          // Create a temporary DocSection for PDF export
+          const tempSection = {
+            id: 'export',
+            type: selectedSectionType,
+            format: 'markdown' as DocOutputFormat,
+            language: selectedLanguage,
+            title: 'Documentation',
+            markdown: documentation,
+          };
+          const blobUrl = await exportToPDF(tempSection);
+          downloadPDF(blobUrl, `${baseFilename}.pdf`);
+        } catch (error: any) {
+          alert(`PDF export failed: ${error.message}`);
+        }
+        break;
+    }
+
+    setShowExportFormatDialog(false);
   };
 
   // Calculate statistics
@@ -422,38 +604,38 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     : 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-red-50/30">
+    <div className="hidden md:flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-red-50/30">
       {/* Beautiful Header with Glassmorphism */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-black/5 flex-shrink-0 sticky top-0 z-50">
-        <div className="px-8 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
+        <div className="px-4 md:px-6 lg:px-8 py-3 md:py-4 lg:py-5">
+          <div className="flex items-center justify-between gap-2 md:gap-4">
+            <div className="flex items-center gap-2 md:gap-3 lg:gap-5 min-w-0 flex-1">
               <button
                 onClick={onBack}
-                className="p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 group shadow-sm hover:shadow-md"
+                className="p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 group shadow-sm hover:shadow-md flex-shrink-0"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-600 group-hover:text-orange-600 group-hover:-translate-x-1 transition-all" />
+                <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 text-slate-600 group-hover:text-orange-600 group-hover:-translate-x-1 transition-all" />
               </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg shadow-orange-500/30">
-                  <Sparkles className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <div className="p-2 md:p-2.5 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg shadow-orange-500/30 flex-shrink-0">
+                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
-              <div>
-                  <h1 className="text-2xl font-extrabold bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent">
+              <div className="min-w-0">
+                  <h1 className="text-lg md:text-xl lg:text-2xl font-extrabold bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent truncate">
                     {t('startWritingDocumentation')}
                   </h1>
-                  <p className="text-sm text-slate-500 mt-0.5 font-medium">
+                  <p className="text-xs md:text-sm text-slate-500 mt-0.5 font-medium truncate">
                     {t('aiPoweredGeneration')}
                 </p>
               </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
               {/* Language Selector */}
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as DocLanguage)}
-                className="px-3 py-2 text-sm font-semibold rounded-xl bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white border border-slate-200 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+                className="px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm font-semibold rounded-xl bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white border border-slate-200 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
                 title="Translate page"
               >
                 <option value="en">🇬🇧 EN</option>
@@ -462,19 +644,19 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
               </select>
               <button
                 onClick={() => setShowAssistant(!showAssistant)}
-                className="p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md relative group"
+                className="p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md relative group"
                 title={showAssistant ? t('hideAiAssistant') : t('showAiAssistant')}
               >
-                <MessageSquare className={`w-5 h-5 transition-colors ${showAssistant ? 'text-orange-600' : 'text-slate-400'}`} />
+                <MessageSquare className={`w-4 h-4 md:w-5 md:h-5 transition-colors ${showAssistant ? 'text-orange-600' : 'text-slate-400'}`} />
                 {showAssistant && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse"></span>
+                  <span className="absolute -top-1 -right-1 w-2 md:w-2.5 h-2 md:h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse"></span>
                 )}
               </button>
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className="p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md"
+                className="p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md"
               >
-                <Settings className="w-5 h-5 text-slate-600" />
+                <Settings className="w-4 h-4 md:w-5 md:h-5 text-slate-600" />
               </button>
             </div>
           </div>
@@ -485,10 +667,10 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar - Assistant with Beautiful Design */}
         {showAssistant && (
-          <aside className="w-80 sticky top-0 self-start h-screen bg-white/60 backdrop-blur-xl border-r border-white/30 shadow-2xl shadow-black/5 overflow-hidden flex flex-col transition-all duration-300 flex-shrink-0">
+          <aside className="w-64 md:w-72 lg:w-80 sticky top-0 self-start h-screen bg-white/60 backdrop-blur-xl border-r border-white/30 shadow-2xl shadow-black/5 overflow-hidden flex flex-col transition-all duration-300 flex-shrink-0">
           <Assistant
               documentation={documentation}
-              onUpdateDocumentation={setDocumentation}
+              onUpdateDocumentation={handleAssistantUpdate}
             model={selectedModel}
           />
         </aside>
@@ -499,7 +681,7 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
           {/* Compact Source Selection Section */}
           <div className="bg-white/40 backdrop-blur-xl border-b border-white/30 shadow-lg shadow-black/5 flex-shrink-0">
             {/* Header with Toggle */}
-            <div className="p-4 border-b border-white/20">
+            <div className="p-3 md:p-4 border-b border-white/20">
                 <button
                 onClick={() => setShowSourceSelection(!showSourceSelection)}
                 className="w-full flex items-center justify-between group hover:bg-white/30 rounded-lg p-2 transition-all duration-300"
@@ -531,7 +713,7 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
               showSourceSelection ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
             }`}>
-              <div className="p-4">
+              <div className="p-3 md:p-4">
                 <div className="max-w-4xl mx-auto">
               {/* GitHub Source Selection */}
               <div>
@@ -1131,14 +1313,14 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                               setActiveTab(repo.fullName);
                               updateDocumentationDisplay(repo.fullName, selectedFormat, selectedSectionType);
                             }}
-                            className={`px-5 py-3 text-sm font-bold border-b-2 transition-all duration-300 whitespace-nowrap flex items-center gap-2 rounded-t-xl ${
+                            className={`px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 text-xs md:text-sm font-bold border-b-2 transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 md:gap-2 rounded-t-lg md:rounded-t-xl ${
                               isActive
                                 ? 'border-orange-500 text-orange-600 bg-gradient-to-b from-orange-50 to-white shadow-lg'
                                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                             }`}
                           >
-                            <Github className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-orange-600' : 'text-slate-500'}`} />
-                            <span className="truncate max-w-[200px]">{repo.name}</span>
+                            <Github className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${isActive ? 'text-orange-600' : 'text-slate-500'}`} />
+                            <span className="truncate max-w-[120px] md:max-w-[150px] lg:max-w-[200px]">{repo.name}</span>
                             {hasDoc && (
                               <span className="px-2 py-0.5 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-full text-xs flex-shrink-0 font-bold border border-green-200">
                                 ✓
@@ -1153,12 +1335,12 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
               
               {/* Format and Section Selector - Compact */}
               {repoDocumentationsFull.size > 0 && (
-                <div className="bg-white/90 backdrop-blur-xl border border-white/50 rounded-xl mb-4 flex-shrink-0 shadow-lg shadow-black/5 p-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <FileText className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-                      <span className="text-[10px] font-bold text-slate-600 flex-shrink-0">{t('format')}</span>
-                      <div className="flex gap-1 flex-wrap min-w-0">
+                <div className="bg-white/90 backdrop-blur-xl border border-white/50 rounded-lg md:rounded-xl mb-3 md:mb-4 flex-shrink-0 shadow-lg shadow-black/5 p-2 md:p-2.5">
+                  <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                    <div className="flex items-center gap-1 md:gap-1.5 flex-1 min-w-0">
+                      <FileText className="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-500 flex-shrink-0" />
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-600 flex-shrink-0">{t('format')}</span>
+                      <div className="flex gap-0.5 md:gap-1 flex-wrap min-w-0">
                         {selectedOutputFormats.map((format) => (
                           <button
                             key={format}
@@ -1231,32 +1413,100 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
               )}
 
                 {/* Documentation Content - Beautiful Card with Overflow */}
-                <div className="flex-1 min-h-0 overflow-hidden">
-                  <div className="h-full bg-white/90 backdrop-blur-xl rounded-3xl border border-white/50 shadow-2xl shadow-black/10 p-10 overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
-                    {selectedFormat === 'html' ? (
+                <div className="flex-1 min-h-0 overflow-hidden relative">
+                  <div className="h-full bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/50 shadow-2xl shadow-black/10 p-4 md:p-6 lg:p-10 overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
+                    {/* Edit Button - Top Right Corner */}
+                    {documentation && !isEditing && (
+                      <button
+                        onClick={() => {
+                          setEditedDocumentation(documentation);
+                          setIsEditing(true);
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="absolute top-2 md:top-3 lg:top-4 right-2 md:right-3 lg:right-4 z-10 flex items-center gap-1.5 md:gap-2 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-xs md:text-sm"
+                        title={t('editDocumentation')}
+                      >
+                        <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        <span className="hidden md:inline">{t('edit')}</span>
+                      </button>
+                    )}
+
+                    {/* Save/Cancel Buttons - Top Right Corner (when editing) */}
+                    {isEditing && (
+                      <div className="absolute top-2 md:top-3 lg:top-4 right-2 md:right-3 lg:right-4 z-10 flex items-center gap-1.5 md:gap-2">
+                        <button
+                          onClick={handleSaveDocumentation}
+                          className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-xs md:text-sm"
+                          title={t('saveChanges')}
+                        >
+                          <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="hidden md:inline">{t('save')}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditing(false);
+                            setEditedDocumentation('');
+                            setHasUnsavedChanges(false);
+                          }}
+                          className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-lg hover:from-slate-600 hover:to-slate-700 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-xs md:text-sm"
+                          title={t('cancel')}
+                        >
+                          <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="hidden md:inline">{t('cancel')}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Save Button - Shows when there are unsaved changes (not in edit mode) */}
+                    {!isEditing && hasUnsavedChanges && documentation && (
+                      <div className="absolute top-2 md:top-3 lg:top-4 right-2 md:right-3 lg:right-4 z-10">
+                        <button
+                          onClick={handleSaveDocumentation}
+                          className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-xs md:text-sm animate-pulse"
+                          title={t('saveChanges')}
+                        >
+                          <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="hidden lg:inline">{t('saveChanges')}</span>
+                          <span className="lg:hidden">{t('save')}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Documentation Display/Edit */}
+                    {isEditing ? (
+                      <textarea
+                        value={editedDocumentation}
+                        onChange={(e) => {
+                          setEditedDocumentation(e.target.value);
+                          setHasUnsavedChanges(e.target.value !== documentation);
+                        }}
+                        className="w-full h-full min-h-[400px] md:min-h-[500px] p-3 md:p-4 border-2 border-orange-300 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 font-mono text-xs md:text-sm resize-none"
+                        placeholder={t('editDocumentationPlaceholder')}
+                      />
+                    ) : selectedFormat === 'html' ? (
                       <div 
-                        className="prose prose-slate max-w-none"
+                        className="prose prose-slate max-w-none prose-sm md:prose-base"
                         dangerouslySetInnerHTML={{ __html: documentation }}
                       />
                     ) : selectedFormat === 'openapi' ? (
-                      <pre className="whitespace-pre-wrap text-sm font-mono bg-slate-900 text-slate-100 p-6 rounded-lg overflow-x-auto">
+                      <pre className="whitespace-pre-wrap text-xs md:text-sm font-mono bg-slate-900 text-slate-100 p-4 md:p-6 rounded-lg overflow-x-auto">
                         <code>{documentation}</code>
                       </pre>
                     ) : (
-                      <div className="whitespace-pre-wrap text-sm prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-orange-600 prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-900 prose-pre:overflow-x-auto prose-pre:max-w-full">
+                      <div className="whitespace-pre-wrap text-xs md:text-sm prose prose-slate max-w-none prose-sm md:prose-base prose-headings:font-bold prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-orange-600 prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-900 prose-pre:overflow-x-auto prose-pre:max-w-full">
                         {documentation}
                       </div>
                     )}
                   </div>
-                  </div>
                 </div>
+              </div>
               )}
-          </div>
-        </main>
+            </div>
+          </main>
 
         {/* Right Sidebar - Actions & Statistics - Beautiful Design */}
-        <aside className="w-80 bg-white/70 backdrop-blur-xl border-l border-white/30 shadow-2xl shadow-black/5 overflow-y-auto flex-shrink-0">
-          <div className="p-6">
+        <aside className="w-64 md:w-72 lg:w-80 bg-white/70 backdrop-blur-xl border-l border-white/30 shadow-2xl shadow-black/5 overflow-y-auto flex-shrink-0">
+            <div className="p-4 md:p-5 lg:p-6">
             {/* Action Buttons */}
             <div className="space-y-4 mb-8">
               {/* Run Workflow Button - Available for both single and multi-repo modes */}
@@ -1285,41 +1535,55 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                   selectedOutputFormats.length === 0 ||
                   selectedSectionTypes.length === 0
                 }
-                className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 text-white rounded-2xl hover:from-red-700 hover:via-orange-700 hover:to-red-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-2xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.03] disabled:hover:scale-100 transform"
+                className="w-full flex items-center justify-center gap-2 md:gap-3 px-3 md:px-4 lg:px-5 py-3 md:py-3.5 lg:py-4 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 text-white rounded-xl md:rounded-2xl hover:from-red-700 hover:via-orange-700 hover:to-red-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm md:text-base shadow-2xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.03] disabled:hover:scale-100 transform"
               >
-                <Sparkles className="w-5 h-5" />
-                <span>{t('runWorkflow')}</span>
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="truncate">{t('runWorkflow')}</span>
               </button>
               
               {documentation && (
                 <>
-                <button
-                  onClick={handleExport}
-                    className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-2xl hover:from-slate-800 hover:to-black transition-all duration-300 font-bold shadow-xl shadow-slate-500/30 hover:shadow-2xl hover:shadow-slate-500/40 hover:scale-[1.03] transform"
-                >
-                    <Download className="w-5 h-5" />
-                  <span>{t('export')}</span>
-                </button>
+                  {/* Save Button - Shows when there are unsaved changes */}
+                  {(isEditing || hasUnsavedChanges) && (
+                    <button
+                      onClick={handleSaveDocumentation}
+                      className="w-full flex items-center justify-center gap-2 md:gap-3 px-3 md:px-4 lg:px-5 py-3 md:py-3.5 lg:py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl md:rounded-2xl hover:from-orange-600 hover:to-red-600 transition-all duration-300 font-bold text-sm md:text-base shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:scale-[1.03] transform"
+                    >
+                      <Save className="w-4 h-4 md:w-5 md:h-5" />
+                      <span className="truncate">{t('saveChanges')}</span>
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleExport}
+                    disabled={isEditing}
+                    className="w-full flex items-center justify-center gap-2 md:gap-3 px-3 md:px-4 lg:px-5 py-3 md:py-3.5 lg:py-4 bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-xl md:rounded-2xl hover:from-slate-800 hover:to-black transition-all duration-300 font-bold text-sm md:text-base shadow-xl shadow-slate-500/30 hover:shadow-2xl hover:shadow-slate-500/40 hover:scale-[1.03] transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <Download className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="truncate">{t('export')}</span>
+                  </button>
+                  
                   {githubMode === 'multi' && selectedRepos.length > 0 && (
                     <button
                       onClick={() => setShowCommitDialog(true)}
-                      className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 text-white rounded-2xl hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 transition-all duration-300 font-bold shadow-2xl shadow-green-500/40 hover:shadow-2xl hover:shadow-green-500/50 hover:scale-[1.03] transform"
+                      disabled={isEditing}
+                      className="w-full flex items-center justify-center gap-2 md:gap-3 px-3 md:px-4 lg:px-5 py-3 md:py-3.5 lg:py-4 bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 text-white rounded-xl md:rounded-2xl hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 transition-all duration-300 font-bold text-sm md:text-base shadow-2xl shadow-green-500/40 hover:shadow-2xl hover:shadow-green-500/50 hover:scale-[1.03] transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
-                      <GitCommit className="w-5 h-5" />
-                      <span>{t('commitToRepos')}</span>
-                </button>
+                      <GitCommit className="w-4 h-4 md:w-5 md:h-5" />
+                      <span className="truncate">{t('commitToRepos')}</span>
+                    </button>
                   )}
                 </>
               )}
             </div>
 
             {/* Statistics Card - Beautiful Design */}
-            <div className="bg-gradient-to-br from-white/90 to-orange-50/50 backdrop-blur-sm rounded-2xl border border-white/50 p-6 shadow-xl shadow-orange-500/10">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-md">
-                  <BarChart3 className="w-5 h-5 text-orange-600" />
+            <div className="bg-gradient-to-br from-white/90 to-orange-50/50 backdrop-blur-sm rounded-xl md:rounded-2xl border border-white/50 p-4 md:p-5 lg:p-6 shadow-xl shadow-orange-500/10">
+              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-5">
+                <div className="p-2 md:p-2.5 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-md">
+                  <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
                 </div>
-                <h3 className="text-base font-extrabold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{t('statistics')}</h3>
+                <h3 className="text-sm md:text-base font-extrabold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{t('statistics')}</h3>
               </div>
               <div className="space-y-3">
                 {/* Documentation Length */}
@@ -1560,6 +1824,51 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                     GitHub
                   </span>
                 </div>
+
+                {/* Generated Features - From Workflow */}
+                {workflowState && (
+                  (workflowState.qualityReports && workflowState.qualityReports.size > 0) ||
+                  (workflowState.refactorProposals && workflowState.refactorProposals.size > 0) ||
+                  (workflowState.badges && workflowState.badges.size > 0)
+                ) && (
+                  <div className="pt-3 mt-3 border-t border-gray-200">
+                    <div className="mb-2">
+                      <h4 className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                        {t('generatedFeatures')}
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {workflowState.qualityReports && workflowState.qualityReports.size > 0 && (
+                        <button
+                          onClick={() => setShowQualityScoresModal(true)}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors cursor-pointer"
+                        >
+                          <BarChart3 className="w-3.5 h-3.5" />
+                          <span>{t('qualityScores')}</span>
+                        </button>
+                      )}
+                      {workflowState.refactorProposals && workflowState.refactorProposals.size > 0 && (
+                        <button
+                          onClick={() => setShowRefactorProposalsModal(true)}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors cursor-pointer"
+                        >
+                          <FolderTree className="w-3.5 h-3.5" />
+                          <span>{t('refactorProposals')}</span>
+                        </button>
+                      )}
+                      {workflowState.badges && workflowState.badges.size > 0 && (
+                        <button
+                          onClick={() => setShowBadgesModal(true)}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition-colors cursor-pointer"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>{t('badges')}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1575,27 +1884,27 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
 
       {/* Agent Workflow Modal */}
       {showAgentWorkflowModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl shadow-lg">
-                  <Sparkles className="w-6 h-6 text-white" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 md:p-2 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl shadow-lg flex-shrink-0">
+                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Agent Workflow</h3>
-                  <p className="text-sm text-gray-600">Automated documentation generation pipeline</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">Agent Workflow</h3>
+                  <p className="text-xs md:text-sm text-gray-600 truncate">Automated documentation generation pipeline</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowAgentWorkflowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                 aria-label={t('close')}
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
               <AgentWorkflow
                 selectedRepos={getReposForWorkflow()}
                 selectedOutputFormats={selectedOutputFormats}
@@ -1612,36 +1921,316 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                   }
                 }}
                 onComplete={(state) => {
+                  console.log('[DocumentationEditor] onComplete called with state:', {
+                    hasGeneratedDocs: !!state.generatedDocs,
+                    generatedDocsSize: state.generatedDocs?.size || 0,
+                    hasGeneratedDocsFull: !!state.generatedDocsFull,
+                    generatedDocsFullSize: state.generatedDocsFull?.size || 0,
+                  });
+                  
+                  // Store workflow state for displaying generated features in statistics
+                  setWorkflowState(state);
+                  
                   // Update documentation from agent results
-                  if (state.generatedDocs) {
+                  if (state.generatedDocs && state.generatedDocs.size > 0) {
                     const newDocs = new Map<string, string>();
                     state.generatedDocs.forEach((doc, repoFullName) => {
+                      console.log(`[DocumentationEditor] Setting docs for ${repoFullName}, length: ${doc.length}`);
                       newDocs.set(repoFullName, doc);
                     });
                     setRepoDocumentations(newDocs);
                     
                     // Store full format-specific documentation
-                    if (state.generatedDocsFull) {
+                    if (state.generatedDocsFull && state.generatedDocsFull.size > 0) {
+                      console.log(`[DocumentationEditor] Setting full docs, size: ${state.generatedDocsFull.size}`);
+                      state.generatedDocsFull.forEach((docs, repoFullName) => {
+                        console.log(`[DocumentationEditor] Full docs for ${repoFullName}:`, {
+                          sectionsCount: docs.sections.length,
+                          sections: docs.sections.map(s => `${s.type}_${s.format}`),
+                        });
+                      });
                       setRepoDocumentationsFull(state.generatedDocsFull);
                     }
                     
                     // Set active tab to first repo
                     const repos = getReposForWorkflow();
+                    console.log(`[DocumentationEditor] Repos for workflow: ${repos.length}`);
                     if (repos.length > 0) {
-                      setActiveTab(repos[0].fullName);
+                      const firstRepo = repos[0];
+                      console.log(`[DocumentationEditor] Setting active tab to: ${firstRepo.fullName}`);
+                      setActiveTab(firstRepo.fullName);
+                      
                       // Update display with selected format and section
-                      updateDocumentationDisplay(repos[0].fullName, selectedFormat, selectedSectionType);
+                      console.log(`[DocumentationEditor] Updating display with format: ${selectedFormat}, section: ${selectedSectionType}`);
+                      updateDocumentationDisplay(firstRepo.fullName, selectedFormat, selectedSectionType);
+                      
+                      // Also set documentation directly as fallback
+                      const directDoc = newDocs.get(firstRepo.fullName);
+                      if (directDoc) {
+                        console.log(`[DocumentationEditor] Setting documentation directly, length: ${directDoc.length}`);
+                        setDocumentation(directDoc);
+                      }
                     }
                     
                     // If single mode, update selectedRepos for display
                     if (githubMode === 'single' && repos.length > 0) {
                       setSelectedRepos(repos);
                     }
+                  } else {
+                    console.warn('[DocumentationEditor] No generated docs in state!');
                   }
+                  
                   setShowAgentWorkflowModal(false);
                   setUseAgentWorkflow(false);
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quality Scores Modal */}
+      {showQualityScoresModal && workflowState?.qualityReports && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 md:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('repositoryQualityScores')}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 truncate">Quality analysis results</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowQualityScoresModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                aria-label={t('close')}
+              >
+                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
+              <div className="space-y-4">
+                {Array.from(workflowState.qualityReports.entries()).map(([repoName, quality]) => {
+                  const score = quality.overallScore;
+                  const scoreColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-blue-600' : score >= 40 ? 'text-yellow-600' : 'text-red-600';
+                  return (
+                    <div key={repoName} className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-4 md:p-5 border border-blue-100 shadow-md">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="font-bold text-lg text-gray-900">{repoName.split('/')[1]}</span>
+                        <span className={`text-3xl font-extrabold ${scoreColor}`}>{score}/100</span>
+                      </div>
+                      <div className="space-y-3">
+                        {quality.metrics && quality.metrics.map((metric: RepoQualityMetric) => (
+                          <div key={metric.id} className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex-1 bg-gray-200 rounded-full h-3">
+                                <div
+                                  className={`h-3 rounded-full transition-all ${
+                                    metric.score >= 80 ? 'bg-green-500' :
+                                    metric.score >= 60 ? 'bg-blue-500' :
+                                    metric.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${metric.score}%` }}
+                                />
+                              </div>
+                              <span className="text-sm text-gray-700 font-medium min-w-[100px]">{metric.label}</span>
+                            </div>
+                            <span className="text-sm text-gray-600 font-semibold min-w-[50px] text-right">{metric.score}/100</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Badges Modal */}
+      {showBadgesModal && workflowState?.badges && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 md:p-2 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg flex-shrink-0">
+                  <Award className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('generatedRepositoryBadges')}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 truncate">Repository badges and shields</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBadgesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                aria-label={t('close')}
+              >
+                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
+              <div className="space-y-4">
+                {Array.from(workflowState.badges.entries()).map(([repoName, badgeMarkdown]) => (
+                  <div key={repoName} className="bg-gradient-to-br from-white to-yellow-50/30 rounded-xl p-4 md:p-5 border border-yellow-100 shadow-md">
+                    <div className="font-bold text-lg text-gray-900 mb-3">{repoName.split('/')[1]}</div>
+                    <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-xs md:text-sm overflow-x-auto mb-4">
+                      <pre className="whitespace-pre-wrap">{badgeMarkdown}</pre>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(badgeMarkdown);
+                        alert(t('badgeMarkdownCopiedToClipboard'));
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-semibold shadow-md hover:shadow-lg"
+                    >
+                      <Copy className="w-4 h-4" />
+                      {t('copyBadgeMarkdown')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refactor Proposals Modal */}
+      {showRefactorProposalsModal && workflowState?.refactorProposals && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 md:p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg flex-shrink-0">
+                  <FolderTree className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('folderStructureRefactorProposals')}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 truncate">Repository structure improvement suggestions</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRefactorProposalsModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                aria-label={t('close')}
+              >
+                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
+              <div className="space-y-4">
+                {Array.from(workflowState.refactorProposals.entries()).map(([repoName, proposal]) => (
+                  <div key={repoName} className="bg-gradient-to-br from-white to-purple-50/30 rounded-xl p-4 md:p-5 border border-purple-100 shadow-md">
+                    <div className="font-bold text-lg text-gray-900 mb-3">{repoName.split('/')[1]}</div>
+                    <p className="text-sm md:text-base text-gray-700 mb-4">{proposal.highLevelSummary}</p>
+                    
+                    {proposal.recommendedStructure && proposal.recommendedStructure.length > 0 && (
+                      <div className="mb-4">
+                        <h5 className="text-sm md:text-base font-semibold text-gray-700 mb-2">{t('recommendedStructure')}</h5>
+                        <ul className="text-xs md:text-sm text-gray-600 space-y-2 ml-4 list-disc">
+                          {proposal.recommendedStructure.map((folder: { folder: string; description: string }, idx: number) => (
+                            <li key={idx} className="leading-relaxed">
+                              <span className="font-mono text-purple-600 font-semibold">{folder.folder}</span> - {folder.description}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {proposal.moves && proposal.moves.length > 0 && (
+                      <div>
+                        <h5 className="text-sm md:text-base font-semibold text-gray-700 mb-3">{t('proposedMoves')} ({proposal.moves.length}):</h5>
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                          {proposal.moves.map((move: RefactorMove, idx: number) => (
+                            <div key={idx} className="text-xs md:text-sm bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
+                              <div className="flex items-start gap-2">
+                                <ArrowRight className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-mono text-purple-700 truncate mb-1">{move.fromPath}</div>
+                                  <div className="font-mono text-green-700 truncate mb-1">{move.toPath}</div>
+                                  <div className="text-gray-600 mt-1">{move.reason}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {proposal.warnings && proposal.warnings.length > 0 && (
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs md:text-sm text-yellow-800">
+                        <strong>⚠️ {t('warnings')}:</strong> {proposal.warnings.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Format Selection Dialog */}
+      {showExportFormatDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-md w-full">
+            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg">
+                  <Download className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900">{t('export')} {t('documentation')}</h3>
+                  <p className="text-xs md:text-sm text-gray-600">Choose export format</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExportFormatDialog(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={t('close')}
+              >
+                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="p-4 md:p-5 lg:p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleExportWithFormat('md')}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                >
+                  <FileText className="w-8 h-8 text-gray-600 group-hover:text-orange-600" />
+                  <span className="font-semibold text-gray-900">Markdown</span>
+                  <span className="text-xs text-gray-500">.md</span>
+                </button>
+                <button
+                  onClick={() => handleExportWithFormat('pdf')}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group"
+                >
+                  <FileText className="w-8 h-8 text-gray-600 group-hover:text-red-600" />
+                  <span className="font-semibold text-gray-900">PDF</span>
+                  <span className="text-xs text-gray-500">.pdf</span>
+                </button>
+                <button
+                  onClick={() => handleExportWithFormat('html')}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                >
+                  <FileText className="w-8 h-8 text-gray-600 group-hover:text-blue-600" />
+                  <span className="font-semibold text-gray-900">HTML</span>
+                  <span className="text-xs text-gray-500">.html</span>
+                </button>
+                <button
+                  onClick={() => handleExportWithFormat('txt')}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 rounded-xl hover:border-gray-500 hover:bg-gray-50 transition-all group"
+                >
+                  <FileText className="w-8 h-8 text-gray-600 group-hover:text-gray-700" />
+                  <span className="font-semibold text-gray-900">Text</span>
+                  <span className="text-xs text-gray-500">.txt</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -15,11 +15,6 @@ export interface AgentState {
   selectedOutputFormats?: DocOutputFormat[];
   selectedSectionTypes?: DocSectionType[];
   selectedLanguage?: DocLanguage;
-  options?: {
-    commitMessage?: string;
-    branch?: string;
-    autoCommit?: boolean;
-  };
   
   // Discovery
   discoveredRepos?: SimpleRepo[];
@@ -38,9 +33,6 @@ export interface AgentState {
   qualityReports?: Map<string, any>; // RepoQualityReport
   refactorProposals?: Map<string, any>; // FolderRefactorProposal
   badges?: Map<string, string>; // Badge markdown strings
-  
-  // GitOps
-  commitResults?: Map<string, CommitResult>;
   
   // Status
   currentStep?: AgentStep;
@@ -66,7 +58,6 @@ export enum AgentStep {
   REFACTOR = 'refactor',
   PLANNING = 'planning',
   WRITING = 'writing',
-  GITOPS = 'gitops',
   COMPLETE = 'complete',
 }
 
@@ -105,17 +96,6 @@ export interface DocumentationSection {
   type: 'overview' | 'features' | 'setup' | 'api' | 'architecture' | 'examples';
   priority: number;
   estimatedTokens: number;
-}
-
-/**
- * Commit Result
- */
-export interface CommitResult {
-  repo: SimpleRepo;
-  success: boolean;
-  commitSha?: string;
-  commitUrl?: string;
-  error?: string;
 }
 
 /**

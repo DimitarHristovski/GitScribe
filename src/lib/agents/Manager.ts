@@ -10,7 +10,6 @@ import { qualityAnalyzerAgent } from './QualityAnalyzer';
 import { refactorProposalAgent } from './RefactorProposal';
 import { docsPlannerAgent } from './DocsPlanner';
 import { docsWriterAgent } from './DocsWriter';
-import { gitOpsAgent } from './GitOps';
 
 /**
  * Agent Graph Definition
@@ -21,8 +20,7 @@ export const agentGraph: GraphEdge[] = [
   { from: AgentStep.QUALITY, to: AgentStep.REFACTOR },
   { from: AgentStep.REFACTOR, to: AgentStep.PLANNING },
   { from: AgentStep.PLANNING, to: AgentStep.WRITING },
-  { from: AgentStep.WRITING, to: AgentStep.GITOPS },
-  { from: AgentStep.GITOPS, to: AgentStep.COMPLETE },
+  { from: AgentStep.WRITING, to: AgentStep.COMPLETE },
 ];
 
 /**
@@ -96,17 +94,6 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
         state.completedSteps?.has(AgentStep.PLANNING) &&
         !state.completedSteps?.has(AgentStep.WRITING) &&
         !!state.documentationPlans && state.documentationPlans.size > 0,
-    },
-  ],
-  [
-    AgentStep.GITOPS,
-    {
-      name: 'GitOps',
-      execute: gitOpsAgent,
-      shouldRun: (state) =>
-        state.completedSteps?.has(AgentStep.WRITING) &&
-        !state.completedSteps?.has(AgentStep.GITOPS) &&
-        !!state.generatedDocs && state.generatedDocs.size > 0,
     },
   ],
 ]);
@@ -247,6 +234,41 @@ export class AgentManager {
           if (nextStep === currentStep) {
             console.warn(`[Manager] Workflow stuck at ${currentStep}, breaking`);
             break;
+          }
+          
+          // Special check: If DISCOVERY completed but no repos were discovered, stop workflow
+          if (currentStep === AgentStep.DISCOVERY && 
+              this.state.completedSteps?.has(AgentStep.DISCOVERY) &&
+              (!this.state.discoveredRepos || this.state.discoveredRepos.length === 0)) {
+            console.error('[Manager] DISCOVERY completed but no repositories found. Stopping workflow.');
+            this.updateState({
+              errors: new Map([['manager', 'No repositories discovered. Cannot proceed with workflow.']]),
+            });
+            break;
+          }
+          
+          // Verify next step can run before proceeding
+          const nextNode = agentNodes.get(nextStep);
+          if (nextNode && nextNode.shouldRun) {
+            const canRunNext = nextNode.shouldRun(this.state);
+            console.log(`[Manager] Next step ${nextStep} can run:`, canRunNext);
+            if (!canRunNext) {
+              console.warn(`[Manager] Next step ${nextStep} conditions not met. State:`, {
+                completedSteps: Array.from(this.state.completedSteps || []),
+                hasDiscoveredRepos: !!this.state.discoveredRepos && this.state.discoveredRepos.length > 0,
+                hasRepoAnalyses: !!this.state.repoAnalyses && this.state.repoAnalyses.size > 0,
+                hasDocumentationPlans: !!this.state.documentationPlans && this.state.documentationPlans.size > 0,
+                hasGeneratedDocs: !!this.state.generatedDocs && this.state.generatedDocs.size > 0,
+              });
+              // If conditions aren't met, check if it's a critical failure
+              if (nextStep === AgentStep.ANALYSIS && 
+                  this.state.completedSteps?.has(AgentStep.DISCOVERY) &&
+                  (!this.state.discoveredRepos || this.state.discoveredRepos.length === 0)) {
+                console.error('[Manager] Cannot proceed to ANALYSIS: No discovered repositories');
+                break;
+              }
+              // Otherwise, try to proceed - executeStep will check again and skip if needed
+            }
           }
           
           currentStep = nextStep;

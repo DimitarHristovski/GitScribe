@@ -185,15 +185,52 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
   try {
     const githubToken = token || getGitHubToken();
     
-    // Use GitHub Raw Content API
+    // If we have a token, use GitHub API to avoid CORS issues
+    if (githubToken) {
+      try {
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+        console.log('Fetching GitHub file via API:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `token ${githubToken}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.content && data.encoding === 'base64') {
+            const content = atob(data.content.replace(/\s/g, ''));
+            console.log(`Successfully fetched ${path} via API, length: ${content.length}`);
+            return content;
+          }
+        } else if (response.status === 404) {
+          // Try main branch if master fails
+          if (branch === 'master') {
+            console.log('Trying main branch instead of master');
+            return fetchGitHubFile(owner, repo, path, 'main', token);
+          }
+          console.log(`File not found: ${path} (404)`);
+          return null;
+        }
+        // If API fails, fall through to raw URL method
+        console.warn('GitHub API request failed, falling back to raw URL');
+      } catch (apiError) {
+        console.warn('GitHub API request error, falling back to raw URL:', apiError);
+      }
+    }
+    
+    // Fallback: Use GitHub Raw Content API (may have CORS issues without token)
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-    console.log('Fetching GitHub file:', url);
+    console.log('Fetching GitHub file via raw URL:', url);
     
     const headers: HeadersInit = {
       'Accept': 'application/json, text/plain, */*',
     };
     
-    // Add Authorization header if token is available
+    // Add Authorization header if token is available (though raw URLs don't support auth)
     if (githubToken) {
       headers['Authorization'] = `token ${githubToken}`;
     }

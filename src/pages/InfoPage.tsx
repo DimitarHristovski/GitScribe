@@ -549,10 +549,6 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
                       <span className="font-bold text-orange-600">4. {t('docsWriter')}</span>
                       <span className="text-gray-700">{t('generatesDocumentation')}</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <span className="font-bold text-orange-600">5. {t('gitOps')}</span>
-                      <span className="text-gray-700">{t('commitsDocumentation')}</span>
-                    </li>
                   </ol>
                 </div>
               </section>
@@ -585,8 +581,7 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
 1. ${t('repoDiscovery')} - ${t('validatesAndDiscovers')}
 2. ${t('repoAnalysis')} - ${t('analyzesStructure')}
 3. ${t('docsPlanner')} - ${t('createsStructuredPlan')}
-4. ${t('docsWriter')} - ${t('generatesDocumentation')}
-5. ${t('gitOps')} - ${t('commitsDocumentation')}`}
+4. ${t('docsWriter')} - ${t('generatesDocumentation')}`}
                   </pre>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">

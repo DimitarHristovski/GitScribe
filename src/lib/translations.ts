@@ -19,6 +19,10 @@ export type TranslationKey =
   | 'hide'
   | 'openaiKey'
   | 'saveChanges'
+  | 'edit'
+  | 'save'
+  | 'editDocumentation'
+  | 'editDocumentationPlaceholder'
   | 'runWorkflow'
   | 'startWritingDocumentation'
   | 'generating'
@@ -610,6 +614,10 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     hide: 'Hide',
     openaiKey: 'OpenAI Key',
     saveChanges: 'Save Changes',
+    edit: 'Edit',
+    save: 'Save',
+    editDocumentation: 'Edit Documentation',
+    editDocumentationPlaceholder: 'Edit your documentation here...',
     runWorkflow: 'Run Workflow',
     startWritingDocumentation: 'Start Writing Documentation',
     generating: 'Generating...',
@@ -1188,6 +1196,10 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     hide: 'Masquer',
     openaiKey: 'Clé OpenAI',
     saveChanges: 'Enregistrer les Modifications',
+    edit: 'Modifier',
+    save: 'Enregistrer',
+    editDocumentation: 'Modifier la Documentation',
+    editDocumentationPlaceholder: 'Modifiez votre documentation ici...',
     runWorkflow: 'Exécuter le Workflow',
     startWritingDocumentation: 'Commencer à Écrire la Documentation',
     generating: 'Génération...',
@@ -1766,6 +1778,10 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     hide: 'Ausblenden',
     openaiKey: 'OpenAI-Schlüssel',
     saveChanges: 'Änderungen Speichern',
+    edit: 'Bearbeiten',
+    save: 'Speichern',
+    editDocumentation: 'Dokumentation Bearbeiten',
+    editDocumentationPlaceholder: 'Bearbeiten Sie Ihre Dokumentation hier...',
     runWorkflow: 'Workflow Ausführen',
     startWritingDocumentation: 'Dokumentation Schreiben Beginnen',
     generating: 'Wird generiert...',
