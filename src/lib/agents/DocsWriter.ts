@@ -10,6 +10,7 @@ import { DocOutputFormat, DocSectionType, GeneratedDocs, DocSection, DocLanguage
 import { callLangChain } from '../langchain-service';
 import { DocumentationPlan } from './types';
 import { retrieveContext } from '../../rag/index';
+import { generateDirectoryTree, parseGitHubUrl, getGitHubToken } from '../github-service';
 
 export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentState>> {
   console.log('[DocsWriter] Starting documentation generation...');
@@ -245,6 +246,19 @@ async function generateSectionSpecificContent(
     console.warn(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);
   }
   
+  // Generate complete directory tree structure
+  let directoryTree = '';
+  try {
+    const repoInfo = parseGitHubUrl(githubUrl);
+    if (repoInfo) {
+      const { owner, repo, branch = 'main' } = repoInfo;
+      const token = getGitHubToken();
+      directoryTree = await generateDirectoryTree(owner, repo, '', branch, token || undefined);
+    }
+  } catch (error) {
+    console.warn(`[DocsWriter] Failed to generate directory tree for ${repoFullName}:`, error);
+  }
+
   // Build context from repo analysis
   const analysisContext = repoAnalysis ? `
 Repository Analysis:
@@ -254,8 +268,9 @@ Repository Analysis:
 - Frameworks: ${repoAnalysis.structure?.frameworks?.join(', ') || 'Unknown'}
 - Languages: ${repoAnalysis.structure?.languages?.join(', ') || 'Unknown'}
 - Complexity: ${repoAnalysis.complexity}
-- Main Files: ${repoAnalysis.structure?.mainFiles?.slice(0, 10).join(', ') || 'Unknown'}
-` : '';
+- Main Files: ${repoAnalysis.structure?.mainFiles?.join(', ') || 'Unknown'}
+${directoryTree ? `\nComplete Directory Structure:\n\`\`\`\n${directoryTree}\`\`\`\n` : ''}
+` : directoryTree ? `\nComplete Directory Structure:\n\`\`\`\n${directoryTree}\`\`\`\n` : '';
 
   // Language mapping for prompts
   const languageNames: Record<DocLanguage, string> = {
@@ -280,8 +295,14 @@ ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE README content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detailed):
 
@@ -296,7 +317,7 @@ Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detaile
    - Return value explanations
    - Error handling examples
 6. **Configuration** - Comprehensive configuration guide with all options explained
-7. **Architecture Overview** - System design and component relationships. If including a "Project Structure" section, use a simple tree format with backticks (├──, └──) and brief inline comments, NOT verbose bullet points with descriptions.
+7. **Architecture Overview** - System design and component relationships. If including a "Project Structure" section, use the complete directory structure provided in the context above. Display it as a simple tree format with backticks (├──, └──) and brief inline comments, NOT verbose bullet points with descriptions. Show ALL files and directories - do NOT truncate.
 8. **Contributing** - Detailed guidelines for contributors with workflow and standards
 9. **License** - License information and usage terms
 10. **Additional Sections** - FAQ, troubleshooting, known issues, roadmap, etc.
@@ -314,8 +335,14 @@ ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Architecture content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that includes (be thorough and detailed):
 
@@ -342,11 +369,20 @@ Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that in
    - Why each was chosen
    - Code examples showing usage
    - Version information
-6. **Project Structure** - Display the COMPLETE directory structure of the entire src/ directory as a simple tree format using backticks and tree characters (├──, └──). You MUST include ALL files and subdirectories within src/. Format it like this example:
+6. **Project Structure** - Display the COMPLETE directory structure of the entire repository (especially the src/ directory) as a simple tree format using backticks and tree characters (├──, └──). The complete directory structure is provided in the context above. You MUST include ALL files and subdirectories. Format it like this example:
 
+\`\`\`
+src/
+├── components/
+│   ├── Component1.tsx
+│   └── Component2.tsx
+├── pages/
+│   └── Page1.tsx
+└── lib/
+    └── utils.ts
+\`\`\`
 
-
-IMPORTANT: Show the COMPLETE structure - include ALL files and directories in src/. Do NOT use verbose bullet points with descriptions. Use ONLY the simple tree format with brief inline comments (using #) for directory purposes. Keep it concise and clean.
+IMPORTANT: Use the complete directory structure provided in the context above. Show ALL files and directories - do NOT truncate or summarize. Use ONLY the simple tree format with brief inline comments (using #) for directory purposes. Keep it concise and clean but COMPLETE.
 7. **Design Patterns** - Detailed documentation of patterns used with:
    - Pattern explanations
    - Code examples
@@ -371,8 +407,14 @@ ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE API Reference content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (be thorough and detailed):
 
@@ -441,8 +483,14 @@ ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Components content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE Components document in Cursor-style that includes (be thorough and detailed):
 
@@ -506,8 +554,14 @@ ${languageInstruction}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Testing & CI/CD content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE Testing & CI/CD document that includes (be thorough and detailed):
 
@@ -572,8 +626,14 @@ ${languageInstruction}
 
 ${analysisContext}
 
-Base Documentation:
-${baseMarkdown}
+Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
+${baseMarkdown.substring(0, 2000)}${baseMarkdown.length > 2000 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+
+CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Changelog content. DO NOT simply reformat or copy the reference documentation above. Instead:
+- Analyze the actual codebase using the RAG context and repository analysis
+- Generate fresh, detailed documentation based on the actual code structure
+- Create comprehensive content that goes FAR BEYOND the reference documentation
+- Use the reference only to understand the project's purpose, not to copy content
 
 Create an EXTENSIVE, COMPREHENSIVE Changelog that includes (be thorough and detailed):
 
@@ -627,7 +687,9 @@ Format it as a standard changelog with version numbers and dates, but make it co
       ? `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation in ${languageNames[language]}. 
 
 CRITICAL REQUIREMENTS:
-- Generate EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- Generate COMPLETELY NEW, EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
 - Be THOROUGH and COMPREHENSIVE - do not be brief
 - Document EVERYTHING - all functions, classes, types, interfaces, constants
 - Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
@@ -636,15 +698,18 @@ CRITICAL REQUIREMENTS:
 - Explain design decisions and rationale, not just what but why
 - Include performance considerations, security notes, and best practices
 - Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase
+- Provide extensive code examples from the actual codebase (use RAG context to find real code)
 - Include troubleshooting guides and common issues
 - Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook level)
+- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
 
-All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity.`
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material.`
       : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
 
 CRITICAL REQUIREMENTS:
-- Generate EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- Generate COMPLETELY NEW, EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
 - Be THOROUGH and COMPREHENSIVE - do not be brief or concise
 - Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities
 - Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
@@ -653,11 +718,12 @@ CRITICAL REQUIREMENTS:
 - Explain design decisions and rationale - explain both "what" and "why"
 - Include performance considerations, security notes, scalability concerns, and best practices
 - Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase
+- Provide extensive code examples from the actual codebase (use RAG context to find real code)
 - Include troubleshooting guides, common issues, and solutions
 - Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
+- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
 
-Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Aim for documentation that is as comprehensive as the codebase itself.`;
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material.`;
     
     const sectionContent = await callLangChain(
       sectionPrompt,

@@ -69,11 +69,11 @@ async function generateMarkdownMermaidDocumentation(
       const { owner, repo, branch = 'main' } = repoInfo;
       const token = getGitHubToken();
       
-      // Get repository structure for better diagram generation
+      // Get repository structure for better diagram generation - show complete structure
       let structureInfo = '';
       try {
         const contents = await listGitHubContents(owner, repo, '', branch, token || undefined);
-        const dirs = contents.filter(item => item.type === 'dir').map(item => item.name).slice(0, 10);
+        const dirs = contents.filter(item => item.type === 'dir').map(item => item.name);
         structureInfo = `Repository structure: ${dirs.join(', ')}`;
       } catch (e) {
         // Continue without structure info

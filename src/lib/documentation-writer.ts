@@ -771,19 +771,16 @@ export async function generateDocumentationFromGitHub(
     }
   }
   
-  // Add file structure summary
+  // Add file structure summary - show complete structure
   try {
     const rootContents = await listGitHubContents(owner, repo, '', branch, token || undefined);
     if (rootContents.length > 0) {
       documentation += `## Repository Structure\n\n`;
       documentation += `**Root Directory Contents:**\n\n`;
-      rootContents.slice(0, 20).forEach((item) => {
+      rootContents.forEach((item) => {
         const icon = item.type === 'dir' ? '📁' : '📄';
         documentation += `${icon} ${item.name}\n`;
       });
-      if (rootContents.length > 20) {
-        documentation += `\n... and ${rootContents.length - 20} more items\n`;
-      }
       documentation += `\n`;
     }
   } catch (e) {

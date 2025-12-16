@@ -179,6 +179,79 @@ export async function listAllFiles(
 }
 
 /**
+ * Generate a complete directory tree structure as a string
+ * Recursively builds a tree representation of the repository structure
+ */
+export async function generateDirectoryTree(
+  owner: string,
+  repo: string,
+  path: string = '',
+  branch: string = 'main',
+  token?: string,
+  prefix: string = '',
+  isLast: boolean = true,
+  maxDepth: number = 10,
+  currentDepth: number = 0
+): Promise<string> {
+  if (currentDepth >= maxDepth) return '';
+
+  try {
+    const contents = await listGitHubContents(owner, repo, path, branch, token);
+    
+    // Filter out hidden files/dirs and node_modules, but keep src/ and other important dirs
+    const filteredContents = contents.filter(item => {
+      if (item.name.startsWith('.') && item.name !== '.github' && item.name !== '.vscode') {
+        return false;
+      }
+      if (item.name === 'node_modules' || item.name === 'dist' || item.name === 'build') {
+        return false;
+      }
+      return true;
+    });
+
+    if (filteredContents.length === 0) return '';
+
+    let tree = '';
+    const sortedContents = filteredContents.sort((a, b) => {
+      // Directories first, then files, both alphabetically
+      if (a.type !== b.type) {
+        return a.type === 'dir' ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    for (let i = 0; i < sortedContents.length; i++) {
+      const item = sortedContents[i];
+      const isLastItem = i === sortedContents.length - 1;
+      const currentPrefix = isLastItem ? '└── ' : '├── ';
+      const nextPrefix = isLastItem ? '    ' : '│   ';
+
+      tree += `${prefix}${currentPrefix}${item.name}\n`;
+
+      if (item.type === 'dir') {
+        const subTree = await generateDirectoryTree(
+          owner,
+          repo,
+          item.path,
+          branch,
+          token,
+          prefix + nextPrefix,
+          isLastItem,
+          maxDepth,
+          currentDepth + 1
+        );
+        tree += subTree;
+      }
+    }
+
+    return tree;
+  } catch (error) {
+    console.warn(`Failed to generate directory tree for ${path}:`, error);
+    return '';
+  }
+}
+
+/**
  * Fetch file content from GitHub
  */
 export async function fetchGitHubFile(owner: string, repo: string, path: string, branch: string = 'main', token?: string): Promise<string | null> {
