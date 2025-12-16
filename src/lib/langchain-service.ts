@@ -2,6 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnableSequence } from '@langchain/core/runnables';
+import { retrieveContext } from '../rag/index';
 
 /**
  * Set OpenAI API key in localStorage
@@ -71,16 +72,34 @@ export async function callLangChain(
   prompt: string,
   systemPrompt?: string,
   model: string = 'gpt-4o-mini',
-  temperature: number = 0.7
+  temperature: number = 0.7,
+  repoName?: string,
+  useRAG: boolean = true
 ): Promise<string> {
   const chatModel = getChatModel(model, temperature);
   const outputParser = new StringOutputParser();
+
+  // Retrieve RAG context if enabled
+  let ragContext = '';
+  if (useRAG && repoName) {
+    try {
+      ragContext = await retrieveContext(prompt, repoName, 5);
+    } catch (error) {
+      console.warn('[LangChain] RAG retrieval failed, continuing without context:', error);
+    }
+  }
 
   const messages = [];
   if (systemPrompt) {
     messages.push(new SystemMessage(systemPrompt));
   }
-  messages.push(new HumanMessage(prompt));
+  
+  // Add RAG context to the prompt if available
+  const enhancedPrompt = ragContext 
+    ? `${ragContext}\n\nUser query: ${prompt}`
+    : prompt;
+  
+  messages.push(new HumanMessage(enhancedPrompt));
 
   const chain = RunnableSequence.from([chatModel, outputParser]);
 
@@ -97,9 +116,11 @@ export async function callLangChainJSON<T = any>(
   prompt: string,
   systemPrompt?: string,
   model: string = 'gpt-4o-mini',
-  temperature: number = 0.7
+  temperature: number = 0.7,
+  repoName?: string,
+  useRAG: boolean = true
 ): Promise<T> {
-  const response = await callLangChain(prompt, systemPrompt, model, temperature);
+  const response = await callLangChain(prompt, systemPrompt, model, temperature, repoName, useRAG);
   
   try {
     return JSON.parse(response);

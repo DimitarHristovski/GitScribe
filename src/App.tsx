@@ -16,7 +16,8 @@ type View =
   | 'support'
   | 'privacy-policy'
   | 'terms-of-service'
-  | 'cookie-policy';
+  | 'cookie-policy'
+  | 'Donate';
 
 function App() {
   const [view, setView] = useState<View>('landing');
@@ -45,6 +46,7 @@ function App() {
     'privacy-policy',
     'terms-of-service',
     'cookie-policy',
+    'Donate',
   ];
 
   if (infoPages.includes(view)) {

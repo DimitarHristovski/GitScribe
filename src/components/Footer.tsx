@@ -179,6 +179,16 @@ export default function Footer({ onNavigate }: FooterProps) {
                   <span>{t('contactUs')}</span>
                 </a>
               </li>
+              <li>
+                <a
+                  href="#"
+                  onClick={(e) => handleLinkClick(e, 'Donate')}
+                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors"
+                >
+                  <Heart className="w-4 h-4" />
+                  <span>{t('Donate')}</span>
+                </a>
+              </li>
             </ul>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { AgentState, AgentStep, RepoAnalysis as RepoAnalysisType } from './types
 import { fetchGitHubFile, listGitHubContents } from '../github-service';
 import { getGitHubToken } from '../github-service';
 import { callLangChain } from '../langchain-service';
+import { indexRepository } from '../../rag/index';
 
 export async function repoAnalysisAgent(state: AgentState): Promise<Partial<AgentState>> {
   console.log('[RepoAnalysis] Starting repository analysis...');
@@ -131,11 +132,18 @@ Format as JSON:
   "complexity": "simple|moderate|complex"
 }`;
 
+        // Index repository for RAG (async, don't wait)
+        indexRepository(repo).catch(err => 
+          console.warn(`[RepoAnalysis] RAG indexing failed for ${repo.fullName}:`, err)
+        );
+
         const aiAnalysis = await callLangChain(
           analysisPrompt,
           'You are a technical analyst. Provide concise, accurate analysis of code repositories.',
           'gpt-4o-mini',
-          0.3
+          0.3,
+          repo.fullName,
+          true // Use RAG
         );
 
         // Parse AI response

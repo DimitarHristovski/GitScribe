@@ -86,6 +86,30 @@ export type TranslationKey =
   | 'resources'
   | 'connect'
   | 'contactUs'
+  | 'Donate'
+  | 'buyMeACoffee'
+  | 'supportGitScribe'
+  | 'supportGitScribeDevelopment'
+  | 'ifYouFindGitScribeUseful'
+  | 'whySupport'
+  | 'gitScribeIsFreeAndOpenSource'
+  | 'yourSupportHelpsUs'
+  | 'newFeatures'
+  | 'developNewFeaturesAndImprovements'
+  | 'maintenanceAndUpdates'
+  | 'keepGitScribeRunningSmoothly'
+  | 'freeAndOpenSource'
+  | 'maintainFreeAccessForEveryone'
+  | 'otherWaysToSupport'
+  | 'starOnGitHub'
+  | 'starringOurRepository'
+  | 'visitGitHub'
+  | 'shareFeedback'
+  | 'letUsKnowWhatYouThink'
+  | 'thankYou'
+  | 'everyContributionMatters'
+  | 'whetherThroughDonations'
+  | 'weAppreciateYourSupport'
   | 'allRightsReserved'
   | 'privacyPolicy'
   | 'termsOfService'
@@ -681,6 +705,30 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     resources: 'Resources',
     connect: 'Connect',
     contactUs: 'Contact Us',
+    Donate: 'Donate',
+    buyMeACoffee: 'Buy me a coffee',
+    supportGitScribe: 'Support GitScribe',
+    supportGitScribeDevelopment: 'Help us continue developing and improving GitScribe',
+    ifYouFindGitScribeUseful: 'If you find GitScribe useful and would like to support its development, consider buying us a coffee!',
+    whySupport: 'Why Support GitScribe?',
+    gitScribeIsFreeAndOpenSource: 'GitScribe is free and open-source, built with passion for the developer community.',
+    yourSupportHelpsUs: 'Your support helps us:',
+    newFeatures: 'New Features',
+    developNewFeaturesAndImprovements: 'Develop new features and improvements based on user feedback',
+    maintenanceAndUpdates: 'Maintenance & Updates',
+    keepGitScribeRunningSmoothly: 'Keep GitScribe running smoothly with regular updates and bug fixes',
+    freeAndOpenSource: 'Free & Open Source',
+    maintainFreeAccessForEveryone: 'Maintain free access for everyone while improving the tool',
+    otherWaysToSupport: 'Other Ways to Support',
+    starOnGitHub: 'Star on GitHub',
+    starringOurRepository: 'Starring our repository helps others discover GitScribe',
+    visitGitHub: 'Visit GitHub',
+    shareFeedback: 'Share Feedback',
+    letUsKnowWhatYouThink: 'Let us know what you think and how we can improve',
+    thankYou: 'Thank You!',
+    everyContributionMatters: 'Every contribution matters, no matter how small.',
+    whetherThroughDonations: 'Whether through donations, GitHub stars, or feedback,',
+    weAppreciateYourSupport: 'we appreciate your support in making GitScribe better for everyone.',
     allRightsReserved: 'All rights reserved',
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
@@ -1263,6 +1311,30 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     resources: 'Ressources',
     connect: 'Se Connecter',
     contactUs: 'Nous Contacter',
+    Donate: 'Faire un don',
+    buyMeACoffee: 'Offrez-moi un café',
+    supportGitScribe: 'Soutenez GitScribe',
+    supportGitScribeDevelopment: 'Aidez-nous à continuer à développer et améliorer GitScribe',
+    ifYouFindGitScribeUseful: 'Si vous trouvez GitScribe utile et souhaitez soutenir son développement, pensez à nous offrir un café!',
+    whySupport: 'Pourquoi soutenir GitScribe?',
+    gitScribeIsFreeAndOpenSource: 'GitScribe est gratuit et open-source, construit avec passion pour la communauté des développeurs.',
+    yourSupportHelpsUs: 'Votre soutien nous aide à:',
+    newFeatures: 'Nouvelles Fonctionnalités',
+    developNewFeaturesAndImprovements: 'Développer de nouvelles fonctionnalités et améliorations basées sur les commentaires des utilisateurs',
+    maintenanceAndUpdates: 'Maintenance & Mises à Jour',
+    keepGitScribeRunningSmoothly: 'Maintenir GitScribe en bon fonctionnement avec des mises à jour régulières et des corrections de bugs',
+    freeAndOpenSource: 'Gratuit & Open Source',
+    maintainFreeAccessForEveryone: 'Maintenir l\'accès gratuit pour tous tout en améliorant l\'outil',
+    otherWaysToSupport: 'Autres Façons de Soutenir',
+    starOnGitHub: 'Étoile sur GitHub',
+    starringOurRepository: 'Étoiler notre dépôt aide les autres à découvrir GitScribe',
+    visitGitHub: 'Visiter GitHub',
+    shareFeedback: 'Partager des Commentaires',
+    letUsKnowWhatYouThink: 'Faites-nous savoir ce que vous pensez et comment nous pouvons nous améliorer',
+    thankYou: 'Merci!',
+    everyContributionMatters: 'Chaque contribution compte, aussi petite soit-elle.',
+    whetherThroughDonations: 'Que ce soit par des dons, des étoiles GitHub ou des commentaires,',
+    weAppreciateYourSupport: 'nous apprécions votre soutien pour rendre GitScribe meilleur pour tous.',
     allRightsReserved: 'Tous droits réservés',
     privacyPolicy: 'Politique de Confidentialité',
     termsOfService: 'Conditions d\'Utilisation',
@@ -1845,6 +1917,30 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     resources: 'Ressourcen',
     connect: 'Verbinden',
     contactUs: 'Kontaktieren Sie uns',
+    Donate: 'Spenden',
+    buyMeACoffee: 'Kauf mir einen Kaffee',
+    supportGitScribe: 'GitScribe unterstützen',
+    supportGitScribeDevelopment: 'Helfen Sie uns, GitScribe weiterzuentwickeln und zu verbessern',
+    ifYouFindGitScribeUseful: 'Wenn Sie GitScribe nützlich finden und dessen Entwicklung unterstützen möchten, erwägen Sie, uns einen Kaffee zu kaufen!',
+    whySupport: 'Warum GitScribe unterstützen?',
+    gitScribeIsFreeAndOpenSource: 'GitScribe ist kostenlos und Open-Source, mit Leidenschaft für die Entwicklergemeinschaft gebaut.',
+    yourSupportHelpsUs: 'Ihre Unterstützung hilft uns:',
+    newFeatures: 'Neue Funktionen',
+    developNewFeaturesAndImprovements: 'Neue Funktionen und Verbesserungen basierend auf Benutzerfeedback entwickeln',
+    maintenanceAndUpdates: 'Wartung & Updates',
+    keepGitScribeRunningSmoothly: 'GitScribe mit regelmäßigen Updates und Fehlerbehebungen reibungslos am Laufen halten',
+    freeAndOpenSource: 'Kostenlos & Open Source',
+    maintainFreeAccessForEveryone: 'Kostenlosen Zugang für alle aufrechterhalten und gleichzeitig das Tool verbessern',
+    otherWaysToSupport: 'Andere Wege zur Unterstützung',
+    starOnGitHub: 'Auf GitHub bewerten',
+    starringOurRepository: 'Das Bewerten unseres Repositories hilft anderen, GitScribe zu entdecken',
+    visitGitHub: 'GitHub besuchen',
+    shareFeedback: 'Feedback teilen',
+    letUsKnowWhatYouThink: 'Lassen Sie uns wissen, was Sie denken und wie wir uns verbessern können',
+    thankYou: 'Vielen Dank!',
+    everyContributionMatters: 'Jeder Beitrag zählt, egal wie klein.',
+    whetherThroughDonations: 'Ob durch Spenden, GitHub-Bewertungen oder Feedback,',
+    weAppreciateYourSupport: 'wir schätzen Ihre Unterstützung, um GitScribe für alle besser zu machen.',
     allRightsReserved: 'Alle Rechte vorbehalten',
     privacyPolicy: 'Datenschutzrichtlinie',
     termsOfService: 'Nutzungsbedingungen',

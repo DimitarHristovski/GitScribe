@@ -5,11 +5,11 @@
 
 import { AgentState, AgentStep } from './types';
 import { generateDocumentationFromGitHub } from '../documentation-writer';
-import { getGitHubToken } from '../github-service';
 import { generateFormatDocumentation } from '../format-generators';
 import { DocOutputFormat, DocSectionType, GeneratedDocs, DocSection, DocLanguage } from '../../types/core';
 import { callLangChain } from '../langchain-service';
 import { DocumentationPlan } from './types';
+import { retrieveContext } from '../../rag/index';
 
 export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentState>> {
   console.log('[DocsWriter] Starting documentation generation...');
@@ -103,6 +103,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
               id: `${sectionType}_${format}_${Date.now()}`,
               type: sectionType,
               format: format,
+              language: selectedLanguage,
               title: `${getSectionTitle(sectionType)} (${format})`,
             };
 
@@ -150,6 +151,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
             id: `fallback_${Date.now()}`,
             type: selectedSectionTypes[0] || 'README',
             format: selectedFormats[0] || 'markdown',
+            language: selectedLanguage,
             title: 'Documentation',
             markdown: baseMarkdown,
           };
@@ -229,8 +231,19 @@ async function generateSectionSpecificContent(
   plan: DocumentationPlan,
   language: DocLanguage = 'en'
 ): Promise<string> {
-  const repoName = plan.repo.name;
   const repoFullName = `${plan.repo.owner}/${plan.repo.name}`;
+  
+  // Get RAG context for better code understanding
+  let ragContext = '';
+  try {
+    ragContext = await retrieveContext(
+      `Generate ${sectionType} documentation for ${repoFullName}`,
+      repoFullName,
+      5
+    );
+  } catch (error) {
+    console.warn(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);
+  }
   
   // Build context from repo analysis
   const analysisContext = repoAnalysis ? `
@@ -249,8 +262,6 @@ Repository Analysis:
     en: 'English',
     fr: 'French',
     de: 'German',
-    it: 'Italian',
-    es: 'Spanish',
   };
 
   const languageInstruction = language !== 'en' 
@@ -262,94 +273,230 @@ Repository Analysis:
   
   switch (sectionType) {
     case 'README':
-      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}".
+      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" in Cursor-style documentation format.
 ${languageInstruction}
+
+${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create a README that includes:
-1. **Project Title and Description** - Clear, concise overview
-2. **Features** - Key capabilities and highlights
-3. **Installation/Setup** - Step-by-step setup instructions
-4. **Usage** - How to use the project with examples
-5. **Configuration** - Any configuration needed
-6. **Contributing** - Guidelines for contributors
-7. **License** - License information if available
+Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detailed):
 
-Make it welcoming, clear, and comprehensive. Focus on helping new users understand and use the project.`;
+1. **Project Title and Description** - Detailed overview with purpose, goals, and target audience
+2. **Features** - Comprehensive list of key capabilities with detailed explanations and code references
+3. **Installation/Setup** - Complete step-by-step setup instructions with prerequisites, dependencies, and troubleshooting
+4. **Usage** - Extensive usage guide with multiple code examples from the actual codebase, different use cases, and scenarios
+5. **API/Function Examples** - Detailed documentation of key functions/classes with:
+   - Complete signatures and type information
+   - Multiple usage examples (basic, advanced, edge cases)
+   - Parameter descriptions with constraints
+   - Return value explanations
+   - Error handling examples
+6. **Configuration** - Comprehensive configuration guide with all options explained
+7. **Architecture Overview** - System design and component relationships
+8. **Contributing** - Detailed guidelines for contributors with workflow and standards
+9. **License** - License information and usage terms
+10. **Additional Sections** - FAQ, troubleshooting, known issues, roadmap, etc.
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thorough, detailed, and comprehensive. Include multiple examples, detailed explanations, and complete information. Do not be brief - provide comprehensive documentation similar to major open-source projects.
+
+Style: Write in a Cursor-like style - code-focused, practical, with real examples from the codebase. Include extensive code snippets that show actual usage patterns. Make it developer-friendly and actionable.`;
       break;
       
     case 'ARCHITECTURE':
-      sectionPrompt = `Generate an Architecture documentation section for "${repoFullName}".
+      sectionPrompt = `Generate an Architecture documentation section for "${repoFullName}" in Cursor-style format.
 ${languageInstruction}
+
+${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create an Architecture document that includes:
-1. **System Overview** - High-level architecture description
-2. **Component Structure** - Breakdown of major components/modules
-3. **Data Flow** - How data moves through the system
-4. **Technology Stack** - Detailed tech stack explanation
-5. **Directory Structure** - Key directories and their purposes
-6. **Design Patterns** - Patterns and principles used
-7. **Dependencies** - Key dependencies and their roles
+Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that includes (be thorough and detailed):
 
-Focus on technical depth, diagrams descriptions, and system design.`;
+1. **System Overview** - Detailed high-level architecture description with diagrams descriptions, design decisions, and code references
+2. **Component Structure** - Complete breakdown of ALL major components/modules with:
+   - Detailed purpose and responsibility
+   - Complete code examples
+   - Interaction patterns
+   - Dependencies between components
+3. **Key Classes/Functions** - Comprehensive documentation of important classes and functions with:
+   - Complete JSDoc/TSDoc comments
+   - Full type signatures with detailed parameter descriptions
+   - Purpose, responsibility, and design rationale
+   - How they fit in the architecture
+   - Multiple usage examples
+   - Performance considerations
+4. **Data Flow** - Detailed explanation of how data moves through the system with:
+   - Step-by-step flow descriptions
+   - Reference to actual functions
+   - State management approach
+   - Data transformation points
+5. **Technology Stack** - Comprehensive tech stack documentation with:
+   - Detailed explanations of each technology
+   - Why each was chosen
+   - Code examples showing usage
+   - Version information
+6. **Directory Structure** - Complete directory structure with:
+   - Explanation of each directory's purpose
+   - File organization rationale
+   - Key files and their roles
+7. **Design Patterns** - Detailed documentation of patterns used with:
+   - Pattern explanations
+   - Code examples
+   - When and why patterns are used
+8. **Dependencies** - Comprehensive dependency documentation with:
+   - Key dependencies and their roles
+   - Version requirements
+   - Why each dependency is needed
+9. **System Interactions** - How different parts interact
+10. **Scalability and Performance** - Architecture considerations
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 4000-6000+ words. Be thorough, detailed, and comprehensive. Document everything - don't leave anything out. Include extensive code examples and detailed explanations.
+
+Style: Code-first approach like Cursor AI. Show actual code structures, class hierarchies, and function relationships. Include extensive code examples that demonstrate the architecture.`;
       break;
       
     case 'API':
-      sectionPrompt = `Generate an API Reference documentation for "${repoFullName}".
+      sectionPrompt = `Generate an API Reference documentation for "${repoFullName}" in Cursor-style format.
 ${languageInstruction}
+
+${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create an API Reference that includes:
-1. **API Overview** - Introduction to the API
-2. **Authentication** - How to authenticate (if applicable)
-3. **Base URL** - API endpoint base URL
-4. **Endpoints** - Detailed endpoint documentation with:
-   - HTTP Method (GET, POST, PUT, DELETE, etc.)
-   - Endpoint path
-   - Request parameters
-   - Request body schema
-   - Response schema
-   - Example requests/responses
-5. **Error Handling** - Error codes and messages
-6. **Rate Limiting** - Rate limits if applicable
+Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (be thorough and detailed):
 
-Focus on practical API usage with code examples.`;
+1. **API Overview** - Comprehensive introduction to the API including:
+   - Purpose and use cases
+   - Design philosophy
+   - Getting started guide
+   - Common patterns
+
+2. **Function/Class Documentation** - For EVERY exported function/class (document all of them):
+   - Complete JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+   - Full type signatures with detailed parameter descriptions
+   - Complete parameter documentation including:
+     * Type information
+     * Purpose and constraints
+     * Valid value ranges
+     * Default values
+     * Example values
+   - Comprehensive return type documentation including:
+     * What is returned
+     * Return value structure
+     * Edge cases
+   - Multiple practical usage examples (basic, advanced, edge cases, error handling)
+   - Performance considerations
+   - Error conditions and handling
+   - Related functions/classes
+
+3. **Code Examples** - Extensive real code examples showing:
+   - Basic usage
+   - Advanced usage patterns
+   - Integration examples
+   - Error handling
+   - Best practices
+   - Anti-patterns to avoid
+
+4. **Type Definitions** - Complete interface/type documentation with:
+   - All properties documented
+   - Type constraints explained
+   - Usage examples
+   - Related types
+
+5. **Error Handling** - Comprehensive error documentation including:
+   - All error codes and messages
+   - When errors occur
+   - How to handle errors
+   - Error recovery strategies
+
+6. **Authentication** - Complete authentication guide (if applicable)
+
+7. **Additional Sections**:
+   - Rate limiting
+   - Versioning
+   - Migration guides
+   - Deprecation notices
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 5000-8000+ words. Document EVERY function, class, interface, and type. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations. Do not skip any API elements.
+
+Style: Generate documentation similar to Cursor AI - include the actual code with inline documentation comments. Show complete function signatures, detailed parameter types, return types, and extensive practical examples. Make it code-first and developer-friendly.`;
       break;
       
     case 'COMPONENTS':
-      sectionPrompt = `Generate a Components documentation section for "${repoFullName}".
+      sectionPrompt = `Generate a Components documentation section for "${repoFullName}" in Cursor-style format.
 ${languageInstruction}
+
+${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
 
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create a Components document that includes:
-1. **Component Overview** - Introduction to the component system
-2. **Component List** - List of major components/modules
-3. **Component Details** - For each component:
-   - Purpose and responsibility
-   - Props/Parameters
+Create an EXTENSIVE, COMPREHENSIVE Components document in Cursor-style that includes (be thorough and detailed):
+
+1. **Component Overview** - Comprehensive introduction to the component system including:
+   - Architecture and design patterns
+   - Component organization
+   - Design principles
+
+2. **Component Documentation** - For EVERY component/class/module (document all of them):
+   - Complete JSDoc/TSDoc style documentation with all standard tags
+   - Comprehensive Props/Parameters documentation with:
+     * Complete type information
+     * Detailed descriptions
+     * Required vs optional
+     * Default values
+     * Validation rules
+     * Example values
+   - Complete interface/type definitions with all properties documented
+   - Extensive usage examples with actual code (basic, advanced, edge cases)
+   - Dependencies and imports explained
+   - Component lifecycle (if applicable)
+   - State management approach
+   - Event handling
+   - Styling approach
+
+3. **Code Examples** - Extensive examples showing:
+   - Actual component code with complete documentation comments
+   - Multiple usage scenarios
+   - Integration examples
+   - Composition patterns
+   - Best practices
+
+4. **Component Hierarchy** - Detailed explanation of:
+   - How components relate to each other
+   - Component tree structure
+   - Data flow between components
+   - Communication patterns
+
+5. **Props/Configuration** - Comprehensive prop/parameter documentation with:
+   - Complete type information
+   - Detailed descriptions
+   - Validation rules
+   - Default values
    - Usage examples
-   - Dependencies
-4. **Component Hierarchy** - How components relate to each other
-5. **Props/Configuration** - Detailed prop/parameter documentation
 
-Focus on reusability, props, and usage patterns.`;
+6. **Additional Sections**:
+   - Styling guide
+   - Theming
+   - Accessibility considerations
+   - Performance optimization
+   - Testing strategies
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 4000-6000+ words. Document EVERY component, prop, and type. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations.
+
+Style: Generate like Cursor AI - show the actual code with inline documentation. Include complete type information, detailed parameter descriptions, and extensive practical examples. Make it code-focused and practical.`;
       break;
       
     case 'TESTING_CI':
@@ -359,18 +506,63 @@ ${languageInstruction}
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create a Testing & CI/CD document that includes:
-1. **Testing Strategy** - Overview of testing approach
-2. **Test Setup** - How to set up and run tests
-3. **Test Types** - Unit tests, integration tests, e2e tests
-4. **CI/CD Pipeline** - Continuous integration/deployment setup
-5. **Running Tests** - Commands and instructions
-6. **Coverage** - Test coverage information
-7. **Deployment** - Deployment process and environments
+Create an EXTENSIVE, COMPREHENSIVE Testing & CI/CD document that includes (be thorough and detailed):
 
-Focus on practical testing and deployment workflows.`;
+1. **Testing Strategy** - Comprehensive overview of testing approach including:
+   - Testing philosophy and principles
+   - Testing pyramid explanation
+   - Coverage goals
+   - Quality metrics
+
+2. **Test Setup** - Complete guide on how to set up and run tests including:
+   - Prerequisites and dependencies
+   - Configuration files
+   - Environment setup
+   - Troubleshooting common issues
+
+3. **Test Types** - Detailed documentation of all test types:
+   - Unit tests (with examples)
+   - Integration tests (with examples)
+   - E2E tests (with examples)
+   - Performance tests
+   - Security tests
+   - Visual regression tests
+
+4. **CI/CD Pipeline** - Comprehensive CI/CD documentation including:
+   - Complete pipeline configuration
+   - All stages explained
+   - Build process
+   - Deployment process
+   - Rollback procedures
+
+5. **Running Tests** - Extensive commands and instructions:
+   - All test commands
+   - Options and flags
+   - Running specific test suites
+   - Debugging tests
+
+6. **Coverage** - Complete test coverage information:
+   - Coverage reports
+   - Coverage goals
+   - Improving coverage
+
+7. **Deployment** - Comprehensive deployment documentation:
+   - Deployment process step-by-step
+   - All environments explained
+   - Deployment strategies
+   - Monitoring and rollback
+
+8. **Additional Sections**:
+   - Best practices
+   - Common issues and solutions
+   - Performance optimization
+   - Security considerations
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations.
+
+Focus on practical testing and deployment workflows with complete information.`;
       break;
       
     case 'CHANGELOG':
@@ -380,16 +572,49 @@ ${languageInstruction}
 ${analysisContext}
 
 Base Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown}
 
-Create a Changelog that includes:
-1. **Version History** - List of versions with dates
-2. **Change Categories** - Added, Changed, Deprecated, Removed, Fixed, Security
-3. **Recent Changes** - Most recent version changes in detail
-4. **Migration Guides** - Breaking changes and migration steps
-5. **Release Notes** - Summary of major releases
+Create an EXTENSIVE, COMPREHENSIVE Changelog that includes (be thorough and detailed):
 
-Format it as a standard changelog with version numbers and dates.`;
+1. **Version History** - Complete list of ALL versions with:
+   - Dates
+   - Release notes
+   - Key highlights
+
+2. **Change Categories** - Detailed documentation for each category:
+   - Added (with descriptions)
+   - Changed (with before/after explanations)
+   - Deprecated (with migration paths)
+   - Removed (with alternatives)
+   - Fixed (with issue descriptions)
+   - Security (with severity and impact)
+
+3. **Recent Changes** - Comprehensive documentation of most recent version changes:
+   - Detailed descriptions
+   - Impact analysis
+   - Migration requirements
+   - Breaking changes highlighted
+
+4. **Migration Guides** - Complete migration guides for:
+   - All breaking changes
+   - Step-by-step migration instructions
+   - Code examples
+   - Common issues and solutions
+
+5. **Release Notes** - Detailed summaries of major releases including:
+   - Feature highlights
+   - Performance improvements
+   - Bug fixes
+   - Security updates
+
+6. **Additional Sections**:
+   - Timeline visualization
+   - Contributor acknowledgments
+   - Statistics
+
+IMPORTANT: Generate EXTENSIVE documentation - aim for 2000-4000+ words. Be thorough, detailed, and comprehensive. Include complete information for all versions and changes.
+
+Format it as a standard changelog with version numbers and dates, but make it comprehensive and detailed.`;
       break;
       
     default:
@@ -398,14 +623,48 @@ Format it as a standard changelog with version numbers and dates.`;
 
   try {
     const systemPrompt = language !== 'en'
-      ? `You are an expert technical writer. Generate comprehensive, accurate ${sectionType} documentation in ${languageNames[language]} based on the repository information provided. Be specific, include examples, and make it practical for developers. All content must be in ${languageNames[language]}.`
-      : `You are an expert technical writer. Generate comprehensive, accurate ${sectionType} documentation based on the repository information provided. Be specific, include examples, and make it practical for developers.`;
+      ? `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation in ${languageNames[language]}. 
+
+CRITICAL REQUIREMENTS:
+- Generate EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- Be THOROUGH and COMPREHENSIVE - do not be brief
+- Document EVERYTHING - all functions, classes, types, interfaces, constants
+- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling)
+- Include detailed type information with complete parameter descriptions
+- Explain design decisions and rationale, not just what but why
+- Include performance considerations, security notes, and best practices
+- Document internal functions and helpers, not just public APIs
+- Provide extensive code examples from the actual codebase
+- Include troubleshooting guides and common issues
+- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook level)
+
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity.`
+      : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
+
+CRITICAL REQUIREMENTS:
+- Generate EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- Be THOROUGH and COMPREHENSIVE - do not be brief or concise
+- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities
+- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration)
+- Include detailed type information with complete parameter descriptions including constraints and valid ranges
+- Explain design decisions and rationale - explain both "what" and "why"
+- Include performance considerations, security notes, scalability concerns, and best practices
+- Document internal functions and helpers, not just public APIs
+- Provide extensive code examples from the actual codebase
+- Include troubleshooting guides, common issues, and solutions
+- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
+
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Aim for documentation that is as comprehensive as the codebase itself.`;
     
     const sectionContent = await callLangChain(
       sectionPrompt,
       systemPrompt,
-      'gpt-4o-mini',
-      0.5
+      'gpt-4o',
+      0.2, // Lower temperature for more consistent, detailed output
+      repoFullName,
+      true // Use RAG
     );
     
     return sectionContent;

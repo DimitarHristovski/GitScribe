@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Github, FolderOpen, Sparkles, Download, GitCommit, BookOpen, Code, Lightbulb, HelpCircle, Shield, FileText, Cookie, Mail } from 'lucide-react';
+import { ArrowLeft, Github, FolderOpen, Sparkles, Download, GitCommit, BookOpen, Code, Lightbulb, HelpCircle, Shield, FileText, Cookie, Mail, Heart } from 'lucide-react';
 import Footer from '../components/Footer';
 import { useTranslation } from '../lib/translations';
 import { DocLanguage } from '../types/core';
@@ -15,7 +15,8 @@ type InfoPageType =
   | 'support'
   | 'privacy-policy'
   | 'terms-of-service'
-  | 'cookie-policy';
+  | 'cookie-policy'
+  | 'Donate';
 
 interface InfoPageProps {
   pageType: InfoPageType;
@@ -1144,6 +1145,112 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
                   <a href="mailto:privacy@GitScribe.com" className="text-orange-600 hover:text-orange-700">
                     privacy@GitScribe.com
                   </a>
+                </p>
+              </section>
+            </div>
+          ),
+        };
+
+      case 'Donate':
+        return {
+          title: t('Donate'),
+          icon: <Heart className="w-8 h-8" />,
+          description: t('supportGitScribeDevelopment'),
+          content: (
+            <div className="space-y-6">
+              <section>
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-8 border border-orange-200 text-center mb-6">
+                  <Heart className="w-16 h-16 text-red-500 mx-auto mb-4 fill-red-500" />
+                  <h2 className="text-3xl font-bold text-gray-900 mb-3">{t('supportGitScribe')}</h2>
+                  <p className="text-lg text-gray-700 mb-6">
+                    {t('ifYouFindGitScribeUseful')}
+                  </p>
+                  <a
+                    href="https://www.buymeacoffee.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold text-lg hover:from-orange-600 hover:to-red-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <span>☕</span>
+                    <span>{t('buyMeACoffee')}</span>
+                  </a>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('whySupport')}</h2>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {t('gitScribeIsFreeAndOpenSource')} {t('yourSupportHelpsUs')}
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <div className="p-1.5 bg-orange-100 rounded-lg mt-0.5">
+                      <Sparkles className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{t('newFeatures')}</h3>
+                      <p className="text-gray-600">{t('developNewFeaturesAndImprovements')}</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="p-1.5 bg-blue-100 rounded-lg mt-0.5">
+                      <Code className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{t('maintenanceAndUpdates')}</h3>
+                      <p className="text-gray-600">{t('keepGitScribeRunningSmoothly')}</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="p-1.5 bg-green-100 rounded-lg mt-0.5">
+                      <Heart className="w-5 h-5 text-green-600 fill-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{t('freeAndOpenSource')}</h3>
+                      <p className="text-gray-600">{t('maintainFreeAccessForEveryone')}</p>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('otherWaysToSupport')}</h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <Github className="w-8 h-8 text-gray-700 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">{t('starOnGitHub')}</h3>
+                    <p className="text-gray-600 text-sm mb-3">
+                      {t('starringOurRepository')}
+                    </p>
+                    <a
+                      href="https://github.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-600 hover:text-orange-700 font-medium text-sm"
+                    >
+                      {t('visitGitHub')} →
+                    </a>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <Mail className="w-8 h-8 text-gray-700 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">{t('shareFeedback')}</h3>
+                    <p className="text-gray-600 text-sm mb-3">
+                      {t('letUsKnowWhatYouThink')}
+                    </p>
+                    <a
+                      href="mailto:support@GitScribe.com"
+                      className="text-orange-600 hover:text-orange-700 font-medium text-sm"
+                    >
+                      {t('contactUs')} →
+                    </a>
+                  </div>
+                </div>
+              </section>
+
+              <section className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('thankYou')}</h2>
+                <p className="text-gray-700 leading-relaxed">
+                  {t('everyContributionMatters')} {t('whetherThroughDonations')} {t('weAppreciateYourSupport')}
                 </p>
               </section>
             </div>

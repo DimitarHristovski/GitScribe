@@ -593,6 +593,8 @@ ${documentation.split('\n').map(line => {
     'gpt-3.5-turbo': { input: 0.50, output: 1.50   },
     'o1-preview': { input: 15.00, output: 60.00   },
     'o1-mini': { input: 3.00, output: 12.00 },
+    'gpt-5.2': { input: 5.00, output: 15.00 },
+    'gpt-5-codex': { input: 8.00, output: 24.00 },
   };
   
   const pricing = modelPricing[selectedModel] || modelPricing['gpt-4o-mini'];
@@ -1354,13 +1356,13 @@ ${documentation.split('\n').map(line => {
                             className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${
                               selectedFormat === format
                                 ? 'bg-orange-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-md hover:scale-105 cursor-pointer'
                             }`}
-                            title={format === 'markdown' ? 'Markdown' :
-                                   format === 'markdown_mermaid' ? 'Markdown + Mermaid' :
-                                   format === 'mdx' ? 'MDX' :
-                                   format === 'openapi' ? 'OpenAPI' :
-                                   'HTML'}
+                            title={format === 'markdown' ? t('markdownStandardFormat') :
+                                   format === 'markdown_mermaid' ? t('markdownMermaidDescription') :
+                                   format === 'mdx' ? t('mdxDescription') :
+                                   format === 'openapi' ? t('openapiDescription') :
+                                   t('htmlDescription')}
                           >
                             {format === 'markdown' ? 'MD' :
                              format === 'markdown_mermaid' ? 'MD+M' :
@@ -1389,7 +1391,7 @@ ${documentation.split('\n').map(line => {
                             className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${
                               selectedSectionType === sectionType
                                 ? 'bg-orange-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-md hover:scale-105 cursor-pointer'
                             }`}
                             title={sectionType === 'README' ? t('sectionReadme') :
                                    sectionType === 'ARCHITECTURE' ? t('sectionArchitecture') :
@@ -1616,6 +1618,8 @@ ${documentation.split('\n').map(line => {
                     <option value="gpt-4-turbo">GPT-4 Turbo </option>
                     <option value="gpt-4">GPT-4 - Standard</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo </option>
+                    <option value="gpt-5.2">GPT-5.2 </option>
+                    <option value="gpt-5-codex">GPT-5 Codex </option>
                     
                   </select>
                 </div>
