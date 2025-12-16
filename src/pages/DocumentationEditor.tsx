@@ -148,12 +148,14 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                 console.log(`[Auto-Update] Starting documentation regeneration for ${repoFullName}...`);
                 
                 // Use agent workflow to regenerate documentation with same settings
+                // Enable autoCommit for auto-update scenarios
                 const initialState: AgentState = {
                   currentStep: AgentStep.DISCOVERY,
                   selectedRepos: [repoObj],
                   selectedOutputFormats: selectedOutputFormats,
                   selectedSectionTypes: selectedSectionTypes,
                   selectedLanguage: selectedLanguage,
+                  autoCommit: true, // Enable GitOps agent for auto-update
                   completedSteps: new Set(),
                 };
 
@@ -187,47 +189,16 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                     }
                   }
 
-                  // Commit all generated documentation sections
-                  for (const section of generatedDocs.sections) {
-                    let content = section.markdown || section.html || section.openapiYaml || '';
-                    if (!content) continue;
-
-                    let filePath = 'DOCUMENTATION.md';
-                    let commitMessage = `docs: Auto-update documentation after ${commitType} to main`;
-
-                    // Use format-specific file names
-                    if (section.format === 'openapi') {
-                      filePath = `docs/api/openapi.yaml`;
-                      commitMessage = `docs: Auto-update OpenAPI spec after ${commitType} to main`;
-                    } else if (section.format === 'html') {
-                      filePath = `docs/${section.type.toLowerCase()}.html`;
-                      commitMessage = `docs: Auto-update ${section.type} HTML after ${commitType} to main`;
-                    } else if (section.format === 'markdown_mermaid' || section.format === 'mdx') {
-                      filePath = `docs/${section.type.toLowerCase()}.${section.format === 'mdx' ? 'mdx' : 'md'}`;
-                      commitMessage = `docs: Auto-update ${section.type} (${section.format}) after ${commitType} to main`;
-                    } else {
-                      filePath = `docs/${section.type.toLowerCase()}.md`;
-                      commitMessage = `docs: Auto-update ${section.type} after ${commitType} to main`;
-                    }
-
-                    try {
-                      if (!repoObj.name) {
-                        console.error(`[Auto-Update] Repository name missing for ${repoFullName}`);
-                        continue;
-                      }
-                      await createOrUpdateFile(
-                        owner,
-                        repoObj.name,
-                        filePath,
-                        content,
-                        commitMessage,
-                        'main',
-                        token
-                      );
-                      console.log(`[Auto-Update] Committed ${filePath} for ${repoFullName}`);
-                    } catch (commitErr) {
-                      console.error(`[Auto-Update] Failed to commit ${filePath} for ${repoFullName}:`, commitErr);
-                    }
+                  // GitOps agent has already committed the documentation
+                  // Check if commits were successful
+                  if (finalState.commits && finalState.commits.has(repoFullName)) {
+                    const repoCommits = finalState.commits.get(repoFullName)!;
+                    console.log(`[Auto-Update] GitOps agent committed ${repoCommits.length} files for ${repoFullName}`);
+                    repoCommits.forEach(commit => {
+                      console.log(`[Auto-Update] ✓ Committed ${commit.path} (SHA: ${commit.sha.substring(0, 7)})`);
+                    });
+                  } else {
+                    console.warn(`[Auto-Update] No commits found for ${repoFullName} - GitOps may have been skipped or failed`);
                   }
 
                   console.log(`[Auto-Update] Documentation successfully auto-updated for ${repoFullName}`);

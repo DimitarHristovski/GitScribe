@@ -10,6 +10,7 @@ import { qualityAnalyzerAgent } from './QualityAnalyzer';
 import { refactorProposalAgent } from './RefactorProposal';
 import { docsPlannerAgent } from './DocsPlanner';
 import { docsWriterAgent } from './DocsWriter';
+import { gitOpsAgent } from './GitOps';
 
 /**
  * Agent Graph Definition
@@ -20,7 +21,13 @@ export const agentGraph: GraphEdge[] = [
   { from: AgentStep.QUALITY, to: AgentStep.REFACTOR },
   { from: AgentStep.REFACTOR, to: AgentStep.PLANNING },
   { from: AgentStep.PLANNING, to: AgentStep.WRITING },
-  { from: AgentStep.WRITING, to: AgentStep.COMPLETE },
+  { 
+    from: AgentStep.WRITING, 
+    to: AgentStep.GITOPS,
+    condition: (state) => state.autoCommit === true // Only go to GitOps if autoCommit is enabled
+  },
+  { from: AgentStep.WRITING, to: AgentStep.COMPLETE }, // Skip GitOps if autoCommit is false
+  { from: AgentStep.GITOPS, to: AgentStep.COMPLETE },
 ];
 
 /**
@@ -96,21 +103,50 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
         !!state.documentationPlans && state.documentationPlans.size > 0,
     },
   ],
+  [
+    AgentStep.GITOPS,
+    {
+      name: 'GitOps',
+      execute: gitOpsAgent,
+      shouldRun: (state) =>
+        // Only run GitOps if autoCommit is enabled and we have generated docs
+        state.autoCommit === true &&
+        state.completedSteps?.has(AgentStep.WRITING) &&
+        !state.completedSteps?.has(AgentStep.GITOPS) &&
+        !!state.generatedDocsFull && state.generatedDocsFull.size > 0,
+    },
+  ],
 ]);
 
 /**
  * Get next step in the workflow
  */
 export function getNextStep(currentStep: AgentStep, state: AgentState): AgentStep | null {
-  const edge = agentGraph.find((e) => e.from === currentStep);
-  if (!edge) return null;
+  // Find all edges from current step
+  const edges = agentGraph.filter((e) => e.from === currentStep);
+  if (edges.length === 0) return null;
 
-  // Check condition if present
-  if (edge.condition && !edge.condition(state)) {
-    return null;
+  // If multiple edges, check conditions to find the right one
+  for (const edge of edges) {
+    // If no condition, this is a default path
+    if (!edge.condition) {
+      // But check if there's a conditional edge that matches first
+      const conditionalEdge = edges.find(e => e.condition && e.condition(state));
+      if (conditionalEdge) {
+        return conditionalEdge.to;
+      }
+      return edge.to;
+    }
+    
+    // Check condition
+    if (edge.condition(state)) {
+      return edge.to;
+    }
   }
 
-  return edge.to;
+  // If no conditional edge matched, return the default (non-conditional) edge
+  const defaultEdge = edges.find(e => !e.condition);
+  return defaultEdge ? defaultEdge.to : null;
 }
 
 /**

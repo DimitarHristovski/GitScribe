@@ -15,6 +15,7 @@ export interface AgentState {
   selectedOutputFormats?: DocOutputFormat[];
   selectedSectionTypes?: DocSectionType[];
   selectedLanguage?: DocLanguage;
+  autoCommit?: boolean; // Whether to automatically commit documentation (for auto-update)
   
   // Discovery
   discoveredRepos?: SimpleRepo[];
@@ -33,6 +34,9 @@ export interface AgentState {
   qualityReports?: Map<string, any>; // RepoQualityReport
   refactorProposals?: Map<string, any>; // FolderRefactorProposal
   badges?: Map<string, string>; // Badge markdown strings
+  
+  // GitOps
+  commits?: Map<string, { path: string; sha: string }[]>; // Committed files per repository
   
   // Status
   currentStep?: AgentStep;
@@ -58,6 +62,7 @@ export enum AgentStep {
   REFACTOR = 'refactor',
   PLANNING = 'planning',
   WRITING = 'writing',
+  GITOPS = 'gitops',
   COMPLETE = 'complete',
 }
 
