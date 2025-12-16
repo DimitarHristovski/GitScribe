@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Sparkles, Flame, Heart, MessageCircle, Zap, GitBranch } from 'lucide-react';
 import Footer from '../components/Footer';
 import { useTranslation } from '../lib/translations';
@@ -26,174 +27,347 @@ export default function Landing({ onGenerate }: LandingProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+      <motion.header 
+        className="bg-white border-b border-gray-100 sticky top-0 z-50"
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full">
+          <motion.div 
+            className="flex items-center gap-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            <motion.div 
+              className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+              whileHover={{ scale: 1.1, rotate: 360 }}
+              transition={{ duration: 0.5 }}
+            >
               <Flame className="w-6 h-6 text-white" />
-            </div>
+            </motion.div>
             <span className="text-xl font-bold text-gray-900">{t('gitScribe')}</span>
-          </div>
-          <div className="flex items-center gap-2">
+          </motion.div>
+          <motion.div 
+            className="flex items-center gap-2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
             {/* Language Selector */}
-            <select
+            <motion.select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value as DocLanguage)}
               className="px-3 py-2 text-sm font-semibold rounded-xl bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white border border-slate-200 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
               title="Translate page"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <option value="en">🇬🇧 EN</option>
               <option value="fr">🇫🇷 FR</option>
               <option value="de">🇩🇪 DE</option>
-            </select>
-          </div>
+            </motion.select>
+          </motion.div>
         </div>
-      </header>
+      </motion.header>
 
       <main className="max-w-7xl mx-auto px-4">
         <section className="py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="mb-6 flex items-center gap-2">
-                <div className="h-1 w-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"></div>
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            >
+              <motion.div 
+                className="mb-6 flex items-center gap-2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                <motion.div 
+                  className="h-1 w-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: 48 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                />
                 <span className="text-orange-600 font-semibold text-sm">{t('aiPowered')}</span>
-              </div>
+              </motion.div>
 
-              <h1 className="text-6xl font-black text-gray-900 mb-6 leading-tight">
+              <motion.h1 
+                className="text-6xl font-black text-gray-900 mb-6 leading-tight"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+              >
                 {t('aiPoweredDocumentationTitle')}
-              </h1>
+              </motion.h1>
 
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              <motion.p 
+                className="text-xl text-gray-600 mb-8 leading-relaxed"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+              >
                 {t('aiPoweredDocumentationDescription')}
-              </p>
+              </motion.p>
 
-              <div className="space-y-4 mb-8">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Flame className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{t('githubIntegration')}</p>
-                    <p className="text-gray-600">{t('githubIntegrationDescription')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Heart className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{t('multiRepoSupport')}</p>
-                    <p className="text-gray-600">{t('multiRepoSupportDescription')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <MessageCircle className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{t('autoCommitExport')}</p>
-                    <p className="text-gray-600">{t('autoCommitExportDescription')}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              <motion.div 
+                className="space-y-4 mb-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8, duration: 0.6 }}
+              >
+                {[
+                  { icon: Flame, title: t('githubIntegration'), desc: t('githubIntegrationDescription') },
+                  { icon: Heart, title: t('multiRepoSupport'), desc: t('multiRepoSupportDescription') },
+                  { icon: MessageCircle, title: t('autoCommitExport'), desc: t('autoCommitExportDescription') }
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    className="flex items-start gap-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.9 + index * 0.1, duration: 0.5 }}
+                    whileHover={{ x: 5, transition: { duration: 0.2 } }}
+                  >
+                    <motion.div 
+                      className="p-2 bg-orange-100 rounded-lg"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <item.icon className="w-5 h-5 text-orange-600" />
+                    </motion.div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{item.title}</p>
+                      <p className="text-gray-600">{item.desc}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
 
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-100 to-red-100 rounded-3xl blur-2xl opacity-50"></div>
-              <div className="relative bg-white rounded-3xl shadow-2xl p-8 border border-orange-100">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <motion.div 
+              className="relative"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+            >
+              <motion.div 
+                className="absolute inset-0 bg-gradient-to-r from-orange-100 to-red-100 rounded-3xl blur-2xl opacity-50"
+                animate={{ 
+                  scale: [1, 1.05, 1],
+                  opacity: [0.5, 0.6, 0.5]
+                }}
+                transition={{ 
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              <motion.div 
+                className="relative bg-white rounded-3xl shadow-2xl p-8 border border-orange-100"
+                whileHover={{ scale: 1.02, y: -5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <motion.div 
+                  className="text-center mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                >
+                  <motion.div 
+                    className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mx-auto mb-4 flex items-center justify-center"
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ 
+                      duration: 3,
+                      repeat: Infinity,
+                      repeatDelay: 2
+                    }}
+                  >
                     <Sparkles className="w-8 h-8 text-white" />
-                  </div>
+                  </motion.div>
                   <h2 className="text-2xl font-bold text-gray-900">{t('readyToStart')}</h2>
                   <p className="text-gray-600 mt-1">{t('generateDocumentationFromRepos')}</p>
-                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-full text-xs text-orange-700">
+                  <motion.div 
+                    className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-full text-xs text-orange-700"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.6, duration: 0.4 }}
+                    whileHover={{ scale: 1.05 }}
+                  >
                     <span>✨</span>
                     <span>{t('noAccountNeeded')}</span>
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
 
                 <div className="space-y-4">
-                  <button
+                  <motion.button
                     onClick={onGenerate}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
+                    whileHover={{ 
+                      scale: 1.05,
+                      boxShadow: "0 10px 30px rgba(249, 115, 22, 0.4)"
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8, duration: 0.5 }}
                   >
-                    <Sparkles className="w-5 h-5" />
+                    <motion.div
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Sparkles className="w-5 h-5" />
+                    </motion.div>
                     {t('startWritingDocumentation')}
-                  </button>
+                  </motion.button>
                   
-                  <p className="text-xs text-gray-500 text-center mt-4">
+                  <motion.p 
+                    className="text-xs text-gray-500 text-center mt-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1, duration: 0.5 }}
+                  >
                     ✨ {t('aiPoweredDocumentationGenerationForGitHub')}
-                  </p>
+                  </motion.p>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
 
         <section className="py-20 border-t border-gray-100">
-          <div className="text-center mb-16">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+          >
             <h2 className="text-4xl font-black text-gray-900 mb-4">
               {t('whyChooseOurTool')}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               {t('whyChooseOurToolDescription')}
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="group">
-              <div className="relative mb-6 h-40 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl overflow-hidden flex items-center justify-center">
-                <Zap className="w-16 h-16 text-orange-400 group-hover:scale-110 transition-transform" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('aiAgentWorkflows')}</h3>
-              <p className="text-gray-600">
-                {t('aiAgentWorkflowsDescription')}
-              </p>
-            </div>
-
-            <div className="group">
-              <div className="relative mb-6 h-40 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl overflow-hidden flex items-center justify-center">
-                <GitBranch className="w-16 h-16 text-red-400 group-hover:scale-110 transition-transform" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('autoUpdateFollow')}</h3>
-              <p className="text-gray-600">
-                {t('autoUpdateFollowDescription')}
-              </p>
-            </div>
-
-            <div className="group">
-              <div className="relative mb-6 h-40 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl overflow-hidden flex items-center justify-center">
-                <MessageCircle className="w-16 h-16 text-orange-400 group-hover:scale-110 transition-transform" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('githubIntegrationFeature')}</h3>
-              <p className="text-gray-600">
-                {t('githubIntegrationFeatureDescription')}
-              </p>
-            </div>
+            {[
+              { icon: Zap, title: t('aiAgentWorkflows'), desc: t('aiAgentWorkflowsDescription'), color: 'orange' },
+              { icon: GitBranch, title: t('autoUpdateFollow'), desc: t('autoUpdateFollowDescription'), color: 'red' },
+              { icon: MessageCircle, title: t('githubIntegrationFeature'), desc: t('githubIntegrationFeatureDescription'), color: 'orange' }
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                className="group"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ delay: index * 0.2, duration: 0.6 }}
+                whileHover={{ y: -10, transition: { duration: 0.3 } }}
+              >
+                <motion.div 
+                  className={`relative mb-6 h-40 bg-gradient-to-br from-${item.color}-50 to-${item.color === 'orange' ? 'red' : 'orange'}-50 rounded-2xl overflow-hidden flex items-center justify-center`}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <motion.div
+                    animate={{ 
+                      y: [0, -10, 0],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 3,
+                      repeat: Infinity,
+                      delay: index * 0.5
+                    }}
+                  >
+                    <item.icon className={`w-16 h-16 text-${item.color}-400`} />
+                  </motion.div>
+                </motion.div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-gray-600">
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </section>
 
         <section className="py-20">
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-12 text-center text-white relative overflow-hidden">
+          <motion.div 
+            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-12 text-center text-white relative overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+          >
             <div className="absolute inset-0 opacity-10">
-              <Flame className="w-32 h-32 absolute top-0 right-0" />
-              <Heart className="w-24 h-24 absolute bottom-0 left-0" />
+              <motion.div
+                animate={{ 
+                  rotate: [0, 360],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+                  scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+                }}
+              >
+                <Flame className="w-32 h-32 absolute top-0 right-0" />
+              </motion.div>
+              <motion.div
+                animate={{ 
+                  rotate: [360, 0],
+                  scale: [1, 1.2, 1]
+                }}
+                transition={{ 
+                  rotate: { duration: 25, repeat: Infinity, ease: "linear" },
+                  scale: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+                }}
+              >
+                <Heart className="w-24 h-24 absolute bottom-0 left-0" />
+              </motion.div>
             </div>
-            <div className="relative z-10">
+            <motion.div 
+              className="relative z-10"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+            >
               <h2 className="text-4xl font-black mb-4">{t('readyToGetStarted')}</h2>
               <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
                 {t('joinDevelopers')}
               </p>
-              <button
+              <motion.button
                 onClick={onGenerate}
-                className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 inline-block flex items-center gap-2 mx-auto"
+                className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg inline-block flex items-center gap-2 mx-auto"
+                whileHover={{ 
+                  scale: 1.05,
+                  boxShadow: "0 10px 40px rgba(255, 255, 255, 0.3)"
+                }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <Sparkles className="w-5 h-5" />
+                <motion.div
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="w-5 h-5" />
+                </motion.div>
                 {t('startGeneratingDocumentation')}
-              </button>
-            </div>
-          </div>
+              </motion.button>
+            </motion.div>
+          </motion.div>
         </section>
 
         <Footer onNavigate={(page) => {
