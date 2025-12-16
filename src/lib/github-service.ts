@@ -89,6 +89,26 @@ export function getGitHubToken(): string | null {
 }
 
 /**
+ * Create headers with proper encoding for GitHub API requests
+ * Ensures all header values are ASCII-safe to avoid encoding issues
+ */
+function createGitHubHeaders(token?: string | null): Headers {
+  const headers = new Headers();
+  headers.set('Accept', 'application/vnd.github.v3+json');
+  
+  if (token) {
+    // Sanitize token: trim whitespace and remove any non-ASCII characters
+    // GitHub tokens should only contain ASCII characters
+    const sanitizedToken = token.trim().replace(/[^\x00-\x7F]/g, '');
+    if (sanitizedToken) {
+      headers.set('Authorization', `token ${sanitizedToken}`);
+    }
+  }
+  
+  return headers;
+}
+
+/**
  * List repository contents using GitHub API
  */
 export async function listGitHubContents(
@@ -100,13 +120,7 @@ export async function listGitHubContents(
 ): Promise<Array<{ name: string; type: 'file' | 'dir'; path: string; size?: number }>> {
   try {
     const githubToken = token || getGitHubToken();
-    const headers: HeadersInit = {
-      Accept: 'application/vnd.github.v3+json',
-    };
-
-    if (githubToken) {
-      headers.Authorization = `token ${githubToken}`;
-    }
+    const headers = createGitHubHeaders(githubToken);
 
     const apiPath = path ? `contents/${path}` : 'contents';
     const url = `https://api.github.com/repos/${owner}/${repo}/${apiPath}?ref=${branch}`;
@@ -264,12 +278,10 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
         const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
         console.log('Fetching GitHub file via API:', apiUrl);
         
+        const headers = createGitHubHeaders(githubToken);
         const response = await fetch(apiUrl, {
           method: 'GET',
-          headers: {
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `token ${githubToken}`,
-          },
+          headers,
         });
         
         if (response.ok) {
@@ -299,13 +311,15 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
     console.log('Fetching GitHub file via raw URL:', url);
     
-    const headers: HeadersInit = {
-      'Accept': 'application/json, text/plain, */*',
-    };
-    
-    // Add Authorization header if token is available (though raw URLs don't support auth)
+    // Use Headers object for raw URL (though raw URLs don't support auth, we still sanitize)
+    const headers = new Headers();
+    headers.set('Accept', 'application/json, text/plain, */*');
+    // Note: Raw URLs don't support Authorization header, but we keep this for consistency
     if (githubToken) {
-      headers['Authorization'] = `token ${githubToken}`;
+      const sanitizedToken = githubToken.trim().replace(/[^\x00-\x7F]/g, '');
+      if (sanitizedToken) {
+        headers.set('Authorization', `token ${sanitizedToken}`);
+      }
     }
     
     const response = await fetch(url, {
@@ -483,13 +497,7 @@ export async function importProjectFromGitHubAPI(
 
   try {
     // Use GitHub API to get repository info
-    const headers: HeadersInit = {
-      Accept: 'application/vnd.github.v3+json',
-    };
-
-    if (token) {
-      headers.Authorization = `token ${token}`;
-    }
+    const headers = createGitHubHeaders(token);
 
     // Get repository info
     const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
@@ -576,10 +584,7 @@ export async function fetchUserRepos(options?: {
     page = 1,
   } = options || {};
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${token}`,
-  };
+  const headers = createGitHubHeaders(token);
 
   const params = new URLSearchParams({
     per_page: perPage.toString(),
@@ -646,10 +651,7 @@ export async function getFileSha(
     throw new Error('GitHub token is required for file operations.');
   }
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${githubToken}`,
-  };
+  const headers = createGitHubHeaders(githubToken);
 
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
@@ -699,11 +701,8 @@ export async function createOrUpdateFile(
   // Encode content to base64
   const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${githubToken}`,
-    'Content-Type': 'application/json',
-  };
+  const headers = createGitHubHeaders(githubToken);
+  headers.set('Content-Type', 'application/json');
 
   const body: any = {
     message,
@@ -781,11 +780,8 @@ export async function deleteFile(
     throw new Error('File does not exist and cannot be deleted.');
   }
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${githubToken}`,
-    'Content-Type': 'application/json',
-  };
+  const headers = createGitHubHeaders(githubToken);
+  headers.set('Content-Type', 'application/json');
 
   const body: any = {
     message,
@@ -842,10 +838,7 @@ export async function getLatestCommitSha(
     throw new Error('GitHub token is required to check commits.');
   }
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${githubToken}`,
-  };
+  const headers = createGitHubHeaders(githubToken);
 
   try {
     // Get the branch reference
@@ -878,10 +871,7 @@ export async function getCommitInfo(
     throw new Error('GitHub token is required to check commits.');
   }
 
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github.v3+json',
-    Authorization: `token ${githubToken}`,
-  };
+  const headers = createGitHubHeaders(githubToken);
 
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/git/commits/${sha}`;
