@@ -46,7 +46,6 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   const [showAssistant, setShowAssistant] = useState<boolean>(true);
   const [showSourceSelection, setShowSourceSelection] = useState<boolean>(true);
   const [showScrollToTop, setShowScrollToTop] = useState<boolean>(false);
-  const [useAgentWorkflow, setUseAgentWorkflow] = useState<boolean>(false);
   const [showAgentWorkflowModal, setShowAgentWorkflowModal] = useState<boolean>(false);
   const [selectedOutputFormats, setSelectedOutputFormats] = useState<DocOutputFormat[]>(['markdown']);
   const [selectedSectionTypes, setSelectedSectionTypes] = useState<DocSectionType[]>(['README']);
@@ -919,39 +918,6 @@ ${documentation.split('\n').map(line => {
                               <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
                                   autoFollowEnabled ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Agent Workflow Toggle */}
-                      {selectedRepos.length > 0 && (
-                        <div className="mt-3 p-3 bg-gradient-to-br from-red-50/80 to-orange-50/80 backdrop-blur-sm border border-red-200/50 rounded-xl shadow-md">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className={`p-1.5 rounded-lg ${useAgentWorkflow ? 'bg-red-100' : 'bg-slate-100'}`}>
-                                <Sparkles className={`w-4 h-4 ${useAgentWorkflow ? 'text-red-600' : 'text-slate-400'}`} />
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-slate-700 cursor-pointer block">
-                                  Agent Workflow
-                                </label>
-                                <p className="text-[10px] text-slate-600">
-                                  Use AI agents for automated pipeline
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => setUseAgentWorkflow(!useAgentWorkflow)}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 shadow-md ${
-                                useAgentWorkflow ? 'bg-gradient-to-r from-red-500 to-orange-600' : 'bg-slate-300'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
-                                  useAgentWorkflow ? 'translate-x-6' : 'translate-x-1'
                                 }`}
                               />
                             </button>
@@ -1974,7 +1940,6 @@ ${documentation.split('\n').map(line => {
                   }
                   
                   setShowAgentWorkflowModal(false);
-                  setUseAgentWorkflow(false);
                 }}
               />
             </div>

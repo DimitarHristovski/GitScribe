@@ -296,7 +296,7 @@ Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detaile
    - Return value explanations
    - Error handling examples
 6. **Configuration** - Comprehensive configuration guide with all options explained
-7. **Architecture Overview** - System design and component relationships
+7. **Architecture Overview** - System design and component relationships. If including a "Project Structure" section, use a simple tree format with backticks (├──, └──) and brief inline comments, NOT verbose bullet points with descriptions.
 8. **Contributing** - Detailed guidelines for contributors with workflow and standards
 9. **License** - License information and usage terms
 10. **Additional Sections** - FAQ, troubleshooting, known issues, roadmap, etc.
@@ -342,10 +342,11 @@ Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that in
    - Why each was chosen
    - Code examples showing usage
    - Version information
-6. **Directory Structure** - Complete directory structure with:
-   - Explanation of each directory's purpose
-   - File organization rationale
-   - Key files and their roles
+6. **Project Structure** - Display the COMPLETE directory structure of the entire src/ directory as a simple tree format using backticks and tree characters (├──, └──). You MUST include ALL files and subdirectories within src/. Format it like this example:
+
+
+
+IMPORTANT: Show the COMPLETE structure - include ALL files and directories in src/. Do NOT use verbose bullet points with descriptions. Use ONLY the simple tree format with brief inline comments (using #) for directory purposes. Keep it concise and clean.
 7. **Design Patterns** - Detailed documentation of patterns used with:
    - Pattern explanations
    - Code examples
