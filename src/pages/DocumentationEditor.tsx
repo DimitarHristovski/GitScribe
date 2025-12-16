@@ -133,25 +133,41 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
         const lastSha = lastCommitShasRef.current.get(repoFullName);
 
         if (latestSha && latestSha !== lastSha) {
-          // New commit detected
+          // New commit detected (any push or merge to main branch)
           const commitInfo = await getCommitInfo(owner, repo, latestSha, token);
           
-          // Check if it's a merge or push to main
-          if (commitInfo && (commitInfo.isMerge || commitInfo.message.toLowerCase().includes('merge'))) {
-            console.log(`New merge detected for ${repoFullName}, regenerating documentation...`);
+          // Trigger on ANY commit to main (pushes, merges, direct commits)
+          if (commitInfo) {
+            const commitType = commitInfo.isMerge ? 'merge' : 'push';
+            console.log(`New ${commitType} detected for ${repoFullName} (SHA: ${latestSha.substring(0, 7)}), regenerating documentation...`);
             
             // Find the repo in selectedRepos
             const repo = selectedRepos.find(r => r.fullName === repoFullName);
             if (repo) {
-              // Regenerate documentation
+              // Regenerate documentation using agent workflow if available, otherwise fallback
               try {
-                const repoDoc = await generateDocumentationFromGitHub(repo.htmlUrl, {
-                  format: 'markdown',
-                  includeCode: true,
-                  includeProps: true,
-                  includeExamples: true,
-                  depth: 'detailed',
-                });
+                let repoDoc = '';
+                
+                // Try to use agent workflow if workflowState exists
+                if (workflowState && workflowState.generatedDocs) {
+                  const existingDoc = workflowState.generatedDocs.get(repoFullName);
+                  if (existingDoc) {
+                    repoDoc = existingDoc;
+                    console.log(`Using existing generated documentation from workflow for ${repoFullName}`);
+                  }
+                }
+                
+                // Fallback to generating new documentation
+                if (!repoDoc) {
+                  console.log(`Generating new documentation for ${repoFullName}...`);
+                  repoDoc = await generateDocumentationFromGitHub(repo.htmlUrl, {
+                    format: 'markdown',
+                    includeCode: true,
+                    includeProps: true,
+                    includeExamples: true,
+                    depth: 'detailed',
+                  });
+                }
 
                 // Update the documentation map
                 setRepoDocumentations(prev => {
@@ -161,19 +177,23 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
                 });
 
                 // Auto-commit the updated documentation
+                const commitMsg = commitInfo.isMerge 
+                  ? `docs: Auto-update documentation after merge to main (${latestSha.substring(0, 7)})`
+                  : `docs: Auto-update documentation after push to main (${latestSha.substring(0, 7)})`;
+                
                 await createOrUpdateFile(
                   owner,
                   repo.name,
                   'DOCUMENTATION.md',
                   repoDoc,
-                  `Auto-update: Documentation regenerated after merge to main`,
+                  commitMsg,
                   'main',
                   token
                 );
 
-                console.log(`Documentation auto-updated for ${repoFullName}`);
+                console.log(`✅ Documentation auto-updated for ${repoFullName} (${commitType})`);
               } catch (err) {
-                console.error(`Failed to auto-update documentation for ${repoFullName}:`, err);
+                console.error(`❌ Failed to auto-update documentation for ${repoFullName}:`, err);
               }
             }
           }
@@ -193,10 +213,10 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
       // Initial check
       checkForUpdates();
 
-      // Set up polling every 5 minutes
+      // Set up polling every 2 minutes (more responsive)
       pollingIntervalRef.current = setInterval(() => {
         checkForUpdates();
-      }, 5 * 60 * 1000); // 5 minutes
+      }, 2 * 60 * 1000); // 2 minutes
 
     return () => {
         if (pollingIntervalRef.current) {
