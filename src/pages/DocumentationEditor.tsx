@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, RefreshCw, Bell, BellOff, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save, FolderTree, Award, Copy, ArrowRight } from 'lucide-react';
+import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, RefreshCw, Bell, BellOff, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save } from 'lucide-react';
 import Assistant from '../components/Assistant';
 import MultiRepoSelector from '../components/MultiRepoSelector';
 import AgentWorkflow from '../components/AgentWorkflow';
@@ -7,9 +7,9 @@ import Footer from '../components/Footer';
 import { generateDocumentationFromGitHub, exportDocumentation } from '../lib/documentation-writer';
 import { parseGitHubUrl, setGitHubToken as saveGitHubToken, getGitHubToken, SimpleRepo, createOrUpdateFile, getLatestCommitSha, getCommitInfo } from '../lib/github-service';
 import { setOpenAIApiKey, getOpenAIApiKey } from '../lib/langchain-service';
-import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage, RepoQualityReport, RepoQualityMetric, FolderRefactorProposal, RefactorMove } from '../types/core';
+import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage } from '../types/core';
 import { useTranslation } from '../lib/translations';
-import { AgentState } from '../lib/agents/types';
+import { AgentState, AgentStep } from '../lib/agents/types';
 
 interface DocumentationEditorProps {
   onBack: () => void;
@@ -56,10 +56,6 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   });
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedDocumentation, setEditedDocumentation] = useState<string>('');
-  const [workflowState, setWorkflowState] = useState<AgentState | null>(null);
-  const [showQualityScoresModal, setShowQualityScoresModal] = useState<boolean>(false);
-  const [showBadgesModal, setShowBadgesModal] = useState<boolean>(false);
-  const [showRefactorProposalsModal, setShowRefactorProposalsModal] = useState<boolean>(false);
   const [showExportFormatDialog, setShowExportFormatDialog] = useState<boolean>(false);
 
   // Save language preference to localStorage
@@ -133,76 +129,124 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
         const lastSha = lastCommitShasRef.current.get(repoFullName);
 
         if (latestSha && latestSha !== lastSha) {
-          // New commit detected (any push or merge to main branch)
+          // New commit detected on main branch
           const commitInfo = await getCommitInfo(owner, repo, latestSha, token);
           
-          // Trigger on ANY commit to main (pushes, merges, direct commits)
-          if (commitInfo) {
+          // Trigger on ANY push or merge to main (not just merges)
+          // This includes regular pushes, merges, and any commits to main
+          const isPushOrMerge = true; // Any commit to main is a push or merge
+          
+          if (commitInfo && isPushOrMerge) {
             const commitType = commitInfo.isMerge ? 'merge' : 'push';
             console.log(`New ${commitType} detected for ${repoFullName} (SHA: ${latestSha.substring(0, 7)}), regenerating documentation...`);
             
             // Find the repo in selectedRepos
-            const repo = selectedRepos.find(r => r.fullName === repoFullName);
-            if (repo) {
-              // Regenerate documentation using agent workflow if available, otherwise fallback
+            const repoObj = selectedRepos.find(r => r.fullName === repoFullName);
+            if (repoObj && repoObj.name) {
+              // Regenerate documentation using agent workflow
               try {
-                let repoDoc = '';
+                console.log(`[Auto-Update] Starting documentation regeneration for ${repoFullName}...`);
                 
-                // Try to use agent workflow if workflowState exists
-                if (workflowState && workflowState.generatedDocs) {
-                  const existingDoc = workflowState.generatedDocs.get(repoFullName);
-                  if (existingDoc) {
-                    repoDoc = existingDoc;
-                    console.log(`Using existing generated documentation from workflow for ${repoFullName}`);
-                  }
-                }
+                // Use agent workflow to regenerate documentation with same settings
+                const initialState: AgentState = {
+                  currentStep: AgentStep.DISCOVERY,
+                  selectedRepos: [repoObj],
+                  selectedOutputFormats: selectedOutputFormats,
+                  selectedSectionTypes: selectedSectionTypes,
+                  selectedLanguage: selectedLanguage,
+                  completedSteps: new Set(),
+                };
+
+                // Import AgentManager dynamically
+                const { AgentManager } = await import('../lib/agents/Manager');
+                const manager = new AgentManager(initialState);
                 
-                // Fallback to generating new documentation
-                if (!repoDoc) {
-                  console.log(`Generating new documentation for ${repoFullName}...`);
-                  repoDoc = await generateDocumentationFromGitHub(repo.htmlUrl, {
-                    format: 'markdown',
-                    includeCode: true,
-                    includeProps: true,
-                    includeExamples: true,
-                    depth: 'detailed',
+                // Run the workflow
+                const finalState = await manager.run();
+                
+                if (finalState.generatedDocsFull && finalState.generatedDocsFull.has(repoFullName)) {
+                  const generatedDocs = finalState.generatedDocsFull.get(repoFullName)!;
+                  
+                  // Update the documentation maps
+                  setRepoDocumentationsFull(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(repoFullName, generatedDocs);
+                    return newMap;
                   });
+                  
+                  // Get the first markdown section for backward compatibility
+                  const firstMarkdownSection = generatedDocs.sections.find(s => s.markdown);
+                  if (firstMarkdownSection?.markdown) {
+                    const markdownContent = firstMarkdownSection.markdown;
+                    if (markdownContent) {
+                      setRepoDocumentations(prev => {
+                        const newMap = new Map(prev);
+                        newMap.set(repoFullName, markdownContent);
+                        return newMap;
+                      });
+                    }
+                  }
+
+                  // Commit all generated documentation sections
+                  for (const section of generatedDocs.sections) {
+                    let content = section.markdown || section.html || section.openapiYaml || '';
+                    if (!content) continue;
+
+                    let filePath = 'DOCUMENTATION.md';
+                    let commitMessage = `docs: Auto-update documentation after ${commitType} to main`;
+
+                    // Use format-specific file names
+                    if (section.format === 'openapi') {
+                      filePath = `docs/api/openapi.yaml`;
+                      commitMessage = `docs: Auto-update OpenAPI spec after ${commitType} to main`;
+                    } else if (section.format === 'html') {
+                      filePath = `docs/${section.type.toLowerCase()}.html`;
+                      commitMessage = `docs: Auto-update ${section.type} HTML after ${commitType} to main`;
+                    } else if (section.format === 'markdown_mermaid' || section.format === 'mdx') {
+                      filePath = `docs/${section.type.toLowerCase()}.${section.format === 'mdx' ? 'mdx' : 'md'}`;
+                      commitMessage = `docs: Auto-update ${section.type} (${section.format}) after ${commitType} to main`;
+                    } else {
+                      filePath = `docs/${section.type.toLowerCase()}.md`;
+                      commitMessage = `docs: Auto-update ${section.type} after ${commitType} to main`;
+                    }
+
+                    try {
+                      if (!repoObj.name) {
+                        console.error(`[Auto-Update] Repository name missing for ${repoFullName}`);
+                        continue;
+                      }
+                      await createOrUpdateFile(
+                        owner,
+                        repoObj.name,
+                        filePath,
+                        content,
+                        commitMessage,
+                        'main',
+                        token
+                      );
+                      console.log(`[Auto-Update] Committed ${filePath} for ${repoFullName}`);
+                    } catch (commitErr) {
+                      console.error(`[Auto-Update] Failed to commit ${filePath} for ${repoFullName}:`, commitErr);
+                    }
+                  }
+
+                  console.log(`[Auto-Update] Documentation successfully auto-updated for ${repoFullName}`);
+                } else {
+                  console.warn(`[Auto-Update] No documentation generated for ${repoFullName}`);
                 }
-
-                // Update the documentation map
-                setRepoDocumentations(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(repoFullName, repoDoc);
-                  return newMap;
-                });
-
-                // Auto-commit the updated documentation
-                const commitMsg = commitInfo.isMerge 
-                  ? `docs: Auto-update documentation after merge to main (${latestSha.substring(0, 7)})`
-                  : `docs: Auto-update documentation after push to main (${latestSha.substring(0, 7)})`;
-                
-                await createOrUpdateFile(
-                  owner,
-                  repo.name,
-                  'DOCUMENTATION.md',
-                  repoDoc,
-                  commitMsg,
-                  'main',
-                  token
-                );
-
-                console.log(`✅ Documentation auto-updated for ${repoFullName} (${commitType})`);
               } catch (err) {
-                console.error(`❌ Failed to auto-update documentation for ${repoFullName}:`, err);
+                console.error(`[Auto-Update] Failed to auto-update documentation for ${repoFullName}:`, err);
               }
+            } else {
+              console.warn(`[Auto-Update] Repository ${repoFullName} not found in selectedRepos or missing name`);
             }
           }
 
-          // Update last known SHA
+          // Update last known SHA (regardless of whether we processed it)
           lastCommitShasRef.current.set(repoFullName, latestSha);
         }
       } catch (err) {
-        console.error(`Error checking updates for ${repoFullName}:`, err);
+        console.error(`[Auto-Update] Error checking updates for ${repoFullName}:`, err);
       }
     }
   };
@@ -213,7 +257,7 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
       // Initial check
       checkForUpdates();
 
-      // Set up polling every 2 minutes (more responsive)
+      // Set up polling every 2 minutes (more frequent for better responsiveness)
       pollingIntervalRef.current = setInterval(() => {
         checkForUpdates();
       }, 2 * 60 * 1000); // 2 minutes
@@ -1849,50 +1893,6 @@ ${documentation.split('\n').map(line => {
                   </span>
                 </div>
 
-                {/* Generated Features - From Workflow */}
-                {workflowState && (
-                  (workflowState.qualityReports && workflowState.qualityReports.size > 0) ||
-                  (workflowState.refactorProposals && workflowState.refactorProposals.size > 0) ||
-                  (workflowState.badges && workflowState.badges.size > 0)
-                ) && (
-                  <div className="pt-3 mt-3 border-t border-gray-200">
-                    <div className="mb-2">
-                      <h4 className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-                        {t('generatedFeatures')}
-                      </h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {workflowState.qualityReports && workflowState.qualityReports.size > 0 && (
-                        <button
-                          onClick={() => setShowQualityScoresModal(true)}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors cursor-pointer"
-                        >
-                          <BarChart3 className="w-3.5 h-3.5" />
-                          <span>{t('qualityScores')}</span>
-                        </button>
-                      )}
-                      {workflowState.refactorProposals && workflowState.refactorProposals.size > 0 && (
-                        <button
-                          onClick={() => setShowRefactorProposalsModal(true)}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors cursor-pointer"
-                        >
-                          <FolderTree className="w-3.5 h-3.5" />
-                          <span>{t('refactorProposals')}</span>
-                        </button>
-                      )}
-                      {workflowState.badges && workflowState.badges.size > 0 && (
-                        <button
-                          onClick={() => setShowBadgesModal(true)}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition-colors cursor-pointer"
-                        >
-                          <Award className="w-3.5 h-3.5" />
-                          <span>{t('badges')}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1952,8 +1952,6 @@ ${documentation.split('\n').map(line => {
                     generatedDocsFullSize: state.generatedDocsFull?.size || 0,
                   });
                   
-                  // Store workflow state for displaying generated features in statistics
-                  setWorkflowState(state);
                   
                   // Update documentation from agent results
                   if (state.generatedDocs && state.generatedDocs.size > 0) {
@@ -2013,190 +2011,6 @@ ${documentation.split('\n').map(line => {
         </div>
       )}
 
-      {/* Quality Scores Modal */}
-      {showQualityScoresModal && workflowState?.qualityReports && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                <div className="p-1.5 md:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg flex-shrink-0">
-                  <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('repositoryQualityScores')}</h3>
-                  <p className="text-xs md:text-sm text-gray-600 truncate">Quality analysis results</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowQualityScoresModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                aria-label={t('close')}
-              >
-                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
-              <div className="space-y-4">
-                {Array.from(workflowState.qualityReports.entries()).map(([repoName, quality]) => {
-                  const score = quality.overallScore;
-                  const scoreColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-blue-600' : score >= 40 ? 'text-yellow-600' : 'text-red-600';
-                  return (
-                    <div key={repoName} className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-4 md:p-5 border border-blue-100 shadow-md">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="font-bold text-lg text-gray-900">{repoName.split('/')[1]}</span>
-                        <span className={`text-3xl font-extrabold ${scoreColor}`}>{score}/100</span>
-                      </div>
-                      <div className="space-y-3">
-                        {quality.metrics && quality.metrics.map((metric: RepoQualityMetric) => (
-                          <div key={metric.id} className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="flex-1 bg-gray-200 rounded-full h-3">
-                                <div
-                                  className={`h-3 rounded-full transition-all ${
-                                    metric.score >= 80 ? 'bg-green-500' :
-                                    metric.score >= 60 ? 'bg-blue-500' :
-                                    metric.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${metric.score}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-gray-700 font-medium min-w-[100px]">{metric.label}</span>
-                            </div>
-                            <span className="text-sm text-gray-600 font-semibold min-w-[50px] text-right">{metric.score}/100</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Badges Modal */}
-      {showBadgesModal && workflowState?.badges && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                <div className="p-1.5 md:p-2 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg flex-shrink-0">
-                  <Award className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('generatedRepositoryBadges')}</h3>
-                  <p className="text-xs md:text-sm text-gray-600 truncate">Repository badges and shields</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowBadgesModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                aria-label={t('close')}
-              >
-                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
-              <div className="space-y-4">
-                {Array.from(workflowState.badges.entries()).map(([repoName, badgeMarkdown]) => (
-                  <div key={repoName} className="bg-gradient-to-br from-white to-yellow-50/30 rounded-xl p-4 md:p-5 border border-yellow-100 shadow-md">
-                    <div className="font-bold text-lg text-gray-900 mb-3">{repoName.split('/')[1]}</div>
-                    <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-xs md:text-sm overflow-x-auto mb-4">
-                      <pre className="whitespace-pre-wrap">{badgeMarkdown}</pre>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(badgeMarkdown);
-                        alert(t('badgeMarkdownCopiedToClipboard'));
-                      }}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-semibold shadow-md hover:shadow-lg"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {t('copyBadgeMarkdown')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Refactor Proposals Modal */}
-      {showRefactorProposalsModal && workflowState?.refactorProposals && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 md:p-5 lg:p-6 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                <div className="p-1.5 md:p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg flex-shrink-0">
-                  <FolderTree className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">{t('folderStructureRefactorProposals')}</h3>
-                  <p className="text-xs md:text-sm text-gray-600 truncate">Repository structure improvement suggestions</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRefactorProposalsModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                aria-label={t('close')}
-              >
-                <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 md:p-5 lg:p-6">
-              <div className="space-y-4">
-                {Array.from(workflowState.refactorProposals.entries()).map(([repoName, proposal]) => (
-                  <div key={repoName} className="bg-gradient-to-br from-white to-purple-50/30 rounded-xl p-4 md:p-5 border border-purple-100 shadow-md">
-                    <div className="font-bold text-lg text-gray-900 mb-3">{repoName.split('/')[1]}</div>
-                    <p className="text-sm md:text-base text-gray-700 mb-4">{proposal.highLevelSummary}</p>
-                    
-                    {proposal.recommendedStructure && proposal.recommendedStructure.length > 0 && (
-                      <div className="mb-4">
-                        <h5 className="text-sm md:text-base font-semibold text-gray-700 mb-2">{t('recommendedStructure')}</h5>
-                        <ul className="text-xs md:text-sm text-gray-600 space-y-2 ml-4 list-disc">
-                          {proposal.recommendedStructure.map((folder: { folder: string; description: string }, idx: number) => (
-                            <li key={idx} className="leading-relaxed">
-                              <span className="font-mono text-purple-600 font-semibold">{folder.folder}</span> - {folder.description}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {proposal.moves && proposal.moves.length > 0 && (
-                      <div>
-                        <h5 className="text-sm md:text-base font-semibold text-gray-700 mb-3">{t('proposedMoves')} ({proposal.moves.length}):</h5>
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
-                          {proposal.moves.map((move: RefactorMove, idx: number) => (
-                            <div key={idx} className="text-xs md:text-sm bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
-                              <div className="flex items-start gap-2">
-                                <ArrowRight className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-mono text-purple-700 truncate mb-1">{move.fromPath}</div>
-                                  <div className="font-mono text-green-700 truncate mb-1">{move.toPath}</div>
-                                  <div className="text-gray-600 mt-1">{move.reason}</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {proposal.warnings && proposal.warnings.length > 0 && (
-                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs md:text-sm text-yellow-800">
-                        <strong>⚠️ {t('warnings')}:</strong> {proposal.warnings.join(', ')}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Export Format Selection Dialog */}
       {showExportFormatDialog && (
