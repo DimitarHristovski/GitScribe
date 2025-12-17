@@ -48,21 +48,21 @@ export default function Footer({ onNavigate }: FooterProps) {
   };
 
   return (
-    <footer className="bg-white border-t border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-4 gap-8 mb-8">
+    <footer className="bg-gradient-to-br from-white to-slate-50 border-t border-gray-200/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        <div className="grid md:grid-cols-4 gap-8 lg:gap-12 mb-8">
           {/* Brand Section */}
           <div className="md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
                 <Flame className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-gray-900">{t('gitScribe')}</span>
+              <span className="text-xl font-black gradient-text">{t('gitScribe')}</span>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
               {t('footerDescription')}
             </p>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
               <span>{t('madeWith')}</span>
               <Heart className="w-4 h-4 text-red-500 fill-red-500" />
               <span>{t('forDevelopers')}</span>
@@ -71,13 +71,13 @@ export default function Footer({ onNavigate }: FooterProps) {
 
           {/* Features Section */}
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">{t('features')}</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-bold text-gray-900 mb-5 text-sm uppercase tracking-wider">{t('features')}</h3>
+            <ul className="space-y-3 text-sm">
               <li>
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'github-integration')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('githubIntegration')}
                 </a>
@@ -86,7 +86,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'multi-repo-support')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('multiRepoSupport')}
                 </a>
@@ -95,7 +95,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'ai-powered-generation')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('aiPoweredGeneration')}
                 </a>
@@ -104,7 +104,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'export-commit')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('export')} & {t('commit')}
                 </a>
@@ -114,13 +114,13 @@ export default function Footer({ onNavigate }: FooterProps) {
 
           {/* Resources Section */}
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">{t('resources')}</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-bold text-gray-900 mb-5 text-sm uppercase tracking-wider">{t('resources')}</h3>
+            <ul className="space-y-3 text-sm">
               <li>
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'documentation-page')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('documentation')}
                 </a>
@@ -129,7 +129,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'api-reference')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('apiReferenceTitle')}
                 </a>
@@ -138,7 +138,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'examples')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('examplesTitle')}
                 </a>
@@ -147,7 +147,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a 
                   href="#" 
                   onClick={(e) => handleLinkClick(e, 'support')}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   {t('supportTitle')}
                 </a>
@@ -157,14 +157,14 @@ export default function Footer({ onNavigate }: FooterProps) {
 
           {/* Contact Section */}
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">{t('connect')}</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-bold text-gray-900 mb-5 text-sm uppercase tracking-wider">{t('connect')}</h3>
+            <ul className="space-y-3 text-sm">
               <li>
                 <a
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors"
+                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   <Github className="w-4 h-4" />
                   <span>{t('github')}</span>
@@ -173,7 +173,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               <li>
                 <a
                   href="mailto:support@GitScribe.com"
-                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors"
+                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   <Mail className="w-4 h-4" />
                   <span>{t('contactUs')}</span>
@@ -183,7 +183,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <a
                   href="#"
                   onClick={(e) => handleLinkClick(e, 'Donate')}
-                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors"
+                  className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors font-medium hover:underline"
                 >
                   <Heart className="w-4 h-4" />
                   <span>{t('Donate')}</span>
@@ -194,29 +194,29 @@ export default function Footer({ onNavigate }: FooterProps) {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-gray-600">
+        <div className="pt-8 border-t border-gray-200/50 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-sm text-gray-600 font-medium">
             © {currentYear} {t('gitScribe')}. {t('allRightsReserved')}.
           </p>
           <div className="flex items-center gap-6 text-sm text-gray-600">
             <a 
               href="#" 
               onClick={(e) => handleLinkClick(e, 'privacy-policy')}
-              className="hover:text-orange-600 transition-colors"
+              className="hover:text-orange-600 transition-colors font-medium hover:underline"
             >
               {t('privacyPolicy')}
             </a>
             <a 
               href="#" 
               onClick={(e) => handleLinkClick(e, 'terms-of-service')}
-              className="hover:text-orange-600 transition-colors"
+              className="hover:text-orange-600 transition-colors font-medium hover:underline"
             >
               {t('termsOfService')}
             </a>
             <a 
               href="#" 
               onClick={(e) => handleLinkClick(e, 'cookie-policy')}
-              className="hover:text-orange-600 transition-colors"
+              className="hover:text-orange-600 transition-colors font-medium hover:underline"
             >
               {t('cookiePolicy')}
             </a>

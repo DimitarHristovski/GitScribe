@@ -22,6 +22,45 @@ export default defineConfig({
       host: 'localhost',
       port: 5173,
     },
+    proxy: {
+      '/api/openai': {
+        target: 'https://api.openai.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/openai/, '/v1'),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Forward the API key from the request header
+            // Headers are lowercased in Node.js http module
+            const apiKey = req.headers['x-api-key'] as string;
+            
+            if (apiKey) {
+              proxyReq.setHeader('Authorization', `Bearer ${apiKey}`);
+              // Ensure Content-Type is set
+              if (!proxyReq.getHeader('Content-Type')) {
+                proxyReq.setHeader('Content-Type', 'application/json');
+              }
+            } else {
+              console.error('[Vite Proxy] ERROR: No API key found in request headers');
+              console.log('[Vite Proxy] Request headers:', Object.keys(req.headers));
+            }
+            
+            // Remove the custom header before forwarding to OpenAI
+            proxyReq.removeHeader('x-api-key');
+          });
+          
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            // Log response status for debugging
+            if (proxyRes.statusCode === 401) {
+              console.error('[Vite Proxy] 401 Unauthorized - API key issue');
+            }
+          });
+          
+          proxy.on('error', (err, req, res) => {
+            console.error('[Vite Proxy] Proxy error:', err);
+          });
+        },
+      },
+    },
   },
   root: path.resolve(__dirname),
   publicDir: 'public',

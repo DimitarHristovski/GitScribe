@@ -353,9 +353,9 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
               </section>
 
               <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('commitToRepository')}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('exportDocumentation')}</h2>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  {t('automaticallyCommitDocumentation')}
+                  {t('exportDocumentationDescription')}
                 </p>
                 <div className="bg-gray-50 rounded-lg p-6 space-y-4">
                   <div>
@@ -363,43 +363,22 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
                     <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-2">
                       <li>{t('runWorkflowGenerate')}</li>
                       <li>{t('reviewGeneratedDocumentation')}</li>
-                      <li>{t('clickCommitToRepos')}</li>
-                      <li>{t('enterCommitMessage')}</li>
-                      <li>{t('specifyTargetBranch')}</li>
-                      <li>{t('documentationCommitted')}</li>
+                      <li>{t('downloadGeneratedDocumentation')}</li>
+                      <li>Copy or use the documentation in your project</li>
                     </ol>
                     <p className="text-gray-600 mt-3 text-sm">
-                      <strong>{t('overview')}:</strong> {t('workflowStopsAfterGeneration')} {t('controlOverCommits')}
+                      <strong>{t('overview')}:</strong> Documentation is generated locally and can be downloaded or copied for use in your repositories.
                     </p>
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">{t('multiRepoSupportTitle')}</h3>
                     <p className="text-gray-700 mb-2">
-                      {t('whenWorkingWithMultiple')} {t('commitOperationProcesses')}
+                      {t('whenWorkingWithMultiple')}
                     </p>
                     <p className="text-gray-600 text-sm">
                       {t('documentationStoredSeparately')}
                     </p>
                   </div>
-                </div>
-              </section>
-
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('autoUpdateFeature')}</h2>
-                <p className="text-gray-700 leading-relaxed mb-4">
-                  {t('enableAutoUpdateDescription')}
-                </p>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    <span className="text-green-600">🔄</span>
-                    {t('automaticUpdates')}
-                  </h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li>• {t('monitorsRepositories')}</li>
-                    <li>• {t('detectsPushesMerges')}</li>
-                    <li>• {t('automaticallyRegenerates')}</li>
-                    <li>• {t('commitsUpdatedDocumentation')}</li>
-                  </ul>
                 </div>
               </section>
             </div>
@@ -747,23 +726,6 @@ export default function InfoPage({ pageType, onBack }: InfoPageProps) {
                     <li>{t('reviewEachRepositoryDocumentation')}</li>
                     <li>{t('switchBetweenFormatsSectionsForEach')}</li>
                     <li>{t('commitAllRepositoriesAtOnce')}</li>
-                  </ol>
-                </div>
-              </section>
-
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('example3AutoUpdateWorkflow')}</h2>
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">{t('scenario')}</h3>
-                  <p className="text-gray-700 mb-4">
-                    {t('youWantDocumentationToAutoUpdate')}
-                  </p>
-                  <h3 className="font-semibold text-gray-900 mb-3">{t('steps')}</h3>
-                  <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-2">
-                    <li>{t('selectRepositoriesInMultiRepoMode')}</li>
-                    <li>{t('enableAutoUpdateForEach')}</li>
-                    <li>{t('toggleGlobalAutoUpdateSwitch')}</li>
-                    <li>{t('documentationWillAutoUpdate')}</li>
                   </ol>
                 </div>
               </section>

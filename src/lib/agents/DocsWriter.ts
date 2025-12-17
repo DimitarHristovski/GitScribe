@@ -32,21 +32,21 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
 
   const docs = new Map<string, string>();
   const generatedDocsMap = new Map<string, GeneratedDocs>();
-  let current = 0;
   const total = state.documentationPlans.size;
+  let completed = 0;
 
-  for (const [repoFullName, plan] of state.documentationPlans.entries()) {
+  // Get selected model from state, default to gpt-4o-mini
+  // For documentation writing, always respect the user's model choice
+  const selectedModel = state.selectedModel || 'gpt-4o-mini';
+
+  // Process all repositories in parallel
+  const writingPromises = Array.from(state.documentationPlans.entries()).map(async ([repoFullName, plan]) => {
+    // Always use the user's selected model for documentation writing
+    // User can choose from: gpt-4o-mini, gpt-4o, gpt-4-turbo, gpt-3.5-turbo, etc.
+    const modelToUse = selectedModel;
     let baseMarkdown = '';
     try {
-      current++;
-      updates.progress = {
-        current,
-        total,
-        currentRepo: repoFullName,
-        currentAgent: 'DocsWriter',
-      };
-
-      console.log(`[DocsWriter] Generating docs for ${repoFullName} (${current}/${total})`);
+      console.log(`[DocsWriter] Starting generation for ${repoFullName}`);
       console.log(`[DocsWriter] Formats: ${selectedFormats.join(', ')}, Sections: ${selectedSectionTypes.join(', ')}`);
 
       // Generate base markdown documentation (for reference)
@@ -75,13 +75,15 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
 
       for (const sectionType of selectedSectionTypes) {
         // Generate section-specific content using AI
+        // Use the user's selected model (no auto-upgrade)
         const sectionSpecificContent = await generateSectionSpecificContent(
           sectionType,
           githubUrl,
           baseMarkdown,
           repoAnalysis,
           plan,
-          selectedLanguage
+          selectedLanguage,
+          modelToUse // Always use the user's selected model
         );
 
         for (const format of selectedFormats) {
@@ -132,17 +134,15 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
         createdAt: new Date().toISOString(),
       };
 
-      generatedDocsMap.set(repoFullName, generatedDocs);
-
       // For backward compatibility, also store as markdown string (first markdown section)
+      let markdownContent = '';
       const firstMarkdownSection = sections.find(s => s.markdown);
       if (firstMarkdownSection?.markdown) {
-        docs.set(repoFullName, firstMarkdownSection.markdown);
+        markdownContent = firstMarkdownSection.markdown;
       } else if (sections.length > 0) {
         // Fallback: use any available content
         const firstSection = sections[0];
-        const content = firstSection.markdown || firstSection.html || firstSection.openapiYaml || '';
-        docs.set(repoFullName, content);
+        markdownContent = firstSection.markdown || firstSection.html || firstSection.openapiYaml || '';
       } else {
         // If no sections were generated, use baseMarkdown as fallback
         console.warn(`[DocsWriter] No sections generated for ${repoFullName}, using baseMarkdown as fallback`);
@@ -158,20 +158,61 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
           };
           sections.push(fallbackSection);
           generatedDocs.sections = sections;
-          generatedDocsMap.set(repoFullName, generatedDocs);
-          docs.set(repoFullName, baseMarkdown);
+          markdownContent = baseMarkdown;
           console.log(`[DocsWriter] Using baseMarkdown fallback for ${repoFullName}`);
         } else {
           console.error(`[DocsWriter] No documentation generated for ${repoFullName} - baseMarkdown is also empty`);
           // Still create an empty entry so the workflow knows we tried
-          docs.set(repoFullName, `# ${plan.repo.name}\n\n*Documentation generation failed. Please check the console for errors.*`);
+          markdownContent = `# ${plan.repo.name}\n\n*Documentation generation failed. Please check the console for errors.*`;
         }
       }
+
+      completed++;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repoFullName,
+        currentAgent: 'DocsWriter',
+      };
+      console.log(`[DocsWriter] Completed generation for ${repoFullName} (${completed}/${total})`);
+
+      return { 
+        repoFullName, 
+        generatedDocs, 
+        markdown: markdownContent, 
+        error: null 
+      };
     } catch (error: any) {
+      completed++;
       console.error(`[DocsWriter] Error generating docs for ${repoFullName}:`, error);
-      const errorKey = `writing_${repoFullName}`;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repoFullName,
+        currentAgent: 'DocsWriter',
+      };
+      return { 
+        repoFullName, 
+        generatedDocs: null, 
+        markdown: '', 
+        error: { key: `writing_${repoFullName}`, message: error.message || 'Documentation generation failed' }
+      };
+    }
+  });
+
+  // Wait for all documentation generation to complete
+  const results = await Promise.all(writingPromises);
+
+  // Process results
+  for (const result of results) {
+    if (result.generatedDocs) {
+      generatedDocsMap.set(result.repoFullName, result.generatedDocs);
+      if (result.markdown) {
+        docs.set(result.repoFullName, result.markdown);
+      }
+    } else if (result.error) {
       if (!updates.errors) updates.errors = new Map();
-      updates.errors.set(errorKey, error.message || 'Documentation generation failed');
+      updates.errors.set(result.error.key, result.error.message);
     }
   }
 
@@ -230,17 +271,20 @@ async function generateSectionSpecificContent(
   baseMarkdown: string,
   repoAnalysis: any,
   plan: DocumentationPlan,
-  language: DocLanguage = 'en'
+  language: DocLanguage = 'en',
+  modelToUse: string = 'gpt-4o-mini' // User's selected model for documentation writing
 ): Promise<string> {
   const repoFullName = `${plan.repo.owner}/${plan.repo.name}`;
   
   // Get RAG context for better code understanding
+  // Use more chunks for comprehensive documentation (like Cursor AI style)
+  // More chunks = more code examples, better context, more detailed documentation
   let ragContext = '';
   try {
     ragContext = await retrieveContext(
       `Generate ${sectionType} documentation for ${repoFullName}`,
       repoFullName,
-      5
+      20 // Increased to 20 chunks for comprehensive Cursor-style documentation with extensive code examples
     );
   } catch (error) {
     console.warn(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);
@@ -288,7 +332,7 @@ ${directoryTree ? `\nComplete Directory Structure:\n\`\`\`\n${directoryTree}\`\`
   
   switch (sectionType) {
     case 'README':
-      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" in Cursor-style documentation format.
+      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" following the EXACT structure and style of professional open-source project documentation (like the GitScribe DOCUMENTATION.md example - 400-500+ lines, comprehensive and detailed).
 ${languageInstruction}
 
 ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
@@ -303,28 +347,225 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE README content. DO N
 - Generate fresh, detailed documentation based on the actual code structure
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
+- Follow the EXACT structure and style of professional documentation (like GitScribe's DOCUMENTATION.md - comprehensive, detailed, 400-500+ lines)
 
-Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE README that MUST follow this EXACT structure (be thorough and detailed, match the style of DOCUMENTATION.md):
 
-1. **Project Title and Description** - Detailed overview with purpose, goals, and target audience
-2. **Features** - Comprehensive list of key capabilities with detailed explanations and code references
-3. **Installation/Setup** - Complete step-by-step setup instructions with prerequisites, dependencies, and troubleshooting
-4. **Usage** - Extensive usage guide with multiple code examples from the actual codebase, different use cases, and scenarios
-5. **API/Function Examples** - Detailed documentation of key functions/classes with:
-   - Complete signatures and type information
-   - Multiple usage examples (basic, advanced, edge cases)
-   - Parameter descriptions with constraints
-   - Return value explanations
-   - Error handling examples
-6. **Configuration** - Comprehensive configuration guide with all options explained
-7. **Architecture Overview** - System design and component relationships. If including a "Project Structure" section, use the complete directory structure provided in the context above. Display it as a simple tree format with backticks (├──, └──) and brief inline comments, NOT verbose bullet points with descriptions. Show ALL files and directories - do NOT truncate.
-8. **Contributing** - Detailed guidelines for contributors with workflow and standards
-9. **License** - License information and usage terms
-10. **Additional Sections** - FAQ, troubleshooting, known issues, roadmap, etc.
+Start with:
+# README
 
-IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thorough, detailed, and comprehensive. Include multiple examples, detailed explanations, and complete information. Do not be brief - provide comprehensive documentation similar to major open-source projects.
+# [Project Name]: [Brief Description]
 
-Style: Write in a Cursor-like style - code-focused, practical, with real examples from the codebase. Include extensive code snippets that show actual usage patterns. Make it developer-friendly and actionable.`;
+Then follow this EXACT structure (matching DOCUMENTATION.md style):
+
+## Project Title and Description
+
+### Overview
+- Write 2-3 comprehensive paragraphs explaining what the project does
+- Describe the technology stack and key technologies used
+- Explain the main purpose and what problems it solves
+- Be detailed and thorough (150-200 words minimum)
+
+### Purpose and Goals
+- Explain the primary purpose of the project
+- Describe the goals and objectives
+- Explain why the project exists and what value it provides
+- Be detailed and thorough (100-150 words minimum)
+
+### Target Audience
+- Describe who would use this project
+- Explain the use cases and scenarios
+- Describe the benefits for different user types
+- Be detailed and thorough (100-150 words minimum)
+
+## Features
+
+### Core Features
+- Create a numbered list (1-12 items) of core features
+- Each feature should have:
+  - **Bold feature name** followed by a colon
+  - 1-2 detailed sentences explaining what it does and why it's useful
+- Format exactly like:
+  1. **Feature Name**: Detailed description explaining what it does and its benefits.
+   
+  2. **Another Feature**: Another detailed description...
+
+### Advanced Features
+- Create a numbered list (1-8 items) of advanced features
+- Same format as Core Features
+- Focus on more sophisticated capabilities
+
+## Installation/Setup
+
+### Prerequisites
+- Start with: "To set up [project name], ensure you have the following prerequisites:"
+- Create a bullet list with bold items:
+  - **Item Name**: Description
+  - **Another Item**: Description
+
+### Step-by-Step Setup Instructions
+- Number each step (1., 2., 3., etc.)
+- Each step should have:
+  - **Bold step title** (e.g., "Clone the Repository")
+  - Brief description
+  - Code blocks with actual commands
+- Include steps for:
+  1. Clone the Repository (with git clone command)
+  2. Install Dependencies (with npm install command)
+  3. Configure Environment Variables (with .env example)
+  4. Start the Development Server (with npm run dev command)
+  5. Build for Production (with npm run build command)
+
+### Troubleshooting
+- Create a bullet list of common issues
+- Each item should have:
+  - **Bold issue name**: Detailed solution
+- Include at least 3-5 troubleshooting items
+
+## Usage
+
+### Quick Start Guide
+- Numbered steps (1., 2., 3., etc.) for getting started quickly
+- Each step should be clear and actionable
+- Include 5-7 steps covering the basic workflow
+
+### Detailed Usage Examples
+- **Basic Example** subsection with:
+  - Complete code example in code blocks
+  - Explanation of what the code does
+  - Expected output or result
+- **Advanced Example** subsection with:
+  - More complex code example
+  - Explanation of advanced features
+- **Error Handling Example** subsection with:
+  - Code showing error handling
+  - Explanation of error scenarios
+
+## API/Function Examples
+
+For each major function/class, document with:
+
+### \`functionName\`
+- Function signature with TypeScript types
+- **Parameters**: Table or detailed list with:
+  - Parameter name, type, description, constraints, examples
+- **Returns**: Detailed explanation of return value
+- **Example Usage**:
+  \`\`\`typescript
+  // Complete code example
+  \`\`\`
+- Include 2-3 usage examples (basic, advanced, edge cases)
+
+Document at least 3-5 major functions/classes from the codebase.
+
+## Configuration
+
+### Environment Variables
+- Create a table with columns:
+  | Variable | Required | Description |
+  |---------|----------|-------------|
+  | VAR_NAME | Yes/No | Description |
+- Include example values in descriptions
+
+### GitHub Token Setup (if applicable)
+- Numbered steps for setting up tokens
+- Include links and detailed instructions
+
+## Architecture Overview
+
+### System Design
+- 2-3 paragraphs explaining high-level architecture
+- Describe design decisions and patterns
+- Reference actual components from the codebase
+
+### Component Relationships
+- Describe how components interact
+- Explain data flow and dependencies
+- Reference actual component names from the codebase
+
+### Project Structure
+- Use the complete directory structure provided in the context above
+- Display as a code block with tree format:
+  \`\`\`
+  src/
+  ├── components/          # Reusable React components
+  │   ├── Component1.tsx
+  │   └── Component2.tsx
+  ├── lib/                 # Core business logic
+  │   ├── service1.ts
+  │   └── service2.ts
+  └── pages/               # Main page components
+      └── Page1.tsx
+  \`\`\`
+- Show ALL files and directories - do NOT truncate
+- Include brief inline comments (using #) for directory purposes
+
+## Contributing
+
+### Guidelines for Contributors
+- Numbered steps (1., 2., 3., etc.) for:
+  1. Fork the Repository (with description)
+  2. Create a Feature Branch (with git command example)
+  3. Commit Your Changes (with git commit example)
+  4. Push to Your Branch (with git push example)
+  5. Open a Pull Request (with description)
+
+### Development Standards
+- Bullet list with:
+  - **Standard Name**: Description
+  - Include: TypeScript Best Practices, Functional Components, Code Comments, Documentation, Testing
+
+## License
+- License information
+- Usage terms
+- Attribution if applicable
+
+## Additional Sections
+
+### FAQ
+- **Q1: Question?**
+  A1: Detailed answer (2-3 sentences minimum)
+- Include 3-5 FAQ items
+
+### Troubleshooting
+- Bullet list with:
+  - **Issue Name**: Detailed solution (2-3 sentences)
+
+### Known Issues
+- Bullet list of current limitations
+- Each with brief description
+
+### Roadmap
+- Bullet list of planned features
+- Each with brief description
+
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4000-6000 words (approximately 400-500+ lines like DOCUMENTATION.md). This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
+
+Length Enforcement:
+- Minimum: 4000 words / 400+ lines (approximately 5500-7000 tokens)
+- Target: 5000-6000 words / 450-500+ lines (approximately 7000-8500 tokens)
+- Maximum: Use the full token budget available (up to 12,000 words / 1000+ lines if needed)
+
+STRUCTURE REQUIREMENTS:
+- Follow the EXACT structure provided above
+- Use proper markdown formatting (## for main sections, ### for subsections)
+- Include ALL subsections listed (Overview, Purpose and Goals, Target Audience, etc.)
+- Use numbered lists for features (1., 2., 3.)
+- Use code blocks for all code examples
+- Use tables for configuration (Environment Variables)
+- Use tree format for Project Structure
+- Each section should be substantial (not just 1-2 sentences)
+
+If you find yourself being brief or concise, STOP and expand. Add more:
+- More detailed explanations in each section (each paragraph should be 3-5 sentences)
+- More code examples (at least 3-5 per major function)
+- More use cases and scenarios
+- More troubleshooting items (5-7 items minimum)
+- More FAQ entries (5-7 questions minimum)
+- More detailed architecture descriptions
+- More features in both Core and Advanced sections (12+ core, 8+ advanced)
+
+Style: Write in a professional, comprehensive style EXACTLY like the DOCUMENTATION.md example. Be thorough, detailed, and developer-friendly. Include extensive code snippets that show actual usage patterns from the codebase. Make it actionable and complete. Match the tone, structure, and level of detail of professional open-source project documentation.`;
       break;
       
     case 'ARCHITECTURE':
@@ -394,9 +635,23 @@ IMPORTANT: Use the complete directory structure provided in the context above. S
 9. **System Interactions** - How different parts interact
 10. **Scalability and Performance** - Architecture considerations
 
-IMPORTANT: Generate EXTENSIVE documentation - aim for 4000-6000+ words. Be thorough, detailed, and comprehensive. Document everything - don't leave anything out. Include extensive code examples and detailed explanations.
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4000-6000 words. This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
 
-Style: Code-first approach like Cursor AI. Show actual code structures, class hierarchies, and function relationships. Include extensive code examples that demonstrate the architecture.`;
+Length Enforcement:
+- Minimum: 4000 words (approximately 5500-7000 tokens)
+- Target: 5000-6000 words (approximately 7000-8500 tokens)
+- Maximum: Use the full token budget available (up to 12,000 words if needed)
+
+If you find yourself being brief or concise, STOP and expand. Add more:
+- Detailed component breakdowns
+- Complete code examples for every component
+- Architecture diagrams descriptions
+- Design pattern explanations with code
+- Data flow descriptions
+- Performance considerations
+- More detailed explanations of each section
+
+Style: Code-first approach like Cursor AI. Show actual code structures, class hierarchies, and function relationships. Include extensive code examples that demonstrate the architecture. Be EXTENSIVE and THOROUGH.`;
       break;
       
     case 'API':
@@ -470,9 +725,23 @@ Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (
    - Migration guides
    - Deprecation notices
 
-IMPORTANT: Generate EXTENSIVE documentation - aim for 5000-8000+ words. Document EVERY function, class, interface, and type. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations. Do not skip any API elements.
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 5000-8000 words. This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
 
-Style: Generate documentation similar to Cursor AI - include the actual code with inline documentation comments. Show complete function signatures, detailed parameter types, return types, and extensive practical examples. Make it code-first and developer-friendly.`;
+Length Enforcement:
+- Minimum: 5000 words (approximately 7000-8500 tokens)
+- Target: 6000-8000 words (approximately 8500-11,000 tokens)
+- Maximum: Use the full token budget available (up to 12,000 words if needed)
+
+If you find yourself being brief or concise, STOP and expand. Add more:
+- Complete documentation for EVERY exported function/class
+- Multiple examples for each function (basic, advanced, edge cases)
+- Detailed parameter documentation for EVERY parameter
+- Complete return type documentation
+- Error handling examples for each function
+- Integration examples
+- More code snippets showing actual usage
+
+Style: Generate documentation similar to Cursor AI - include the actual code with inline documentation comments. Show complete function signatures, detailed parameter types, return types, and extensive practical examples. Make it code-first and developer-friendly. Be EXTENSIVE and THOROUGH.`;
       break;
       
     case 'COMPONENTS':
@@ -543,9 +812,23 @@ Create an EXTENSIVE, COMPREHENSIVE Components document in Cursor-style that incl
    - Performance optimization
    - Testing strategies
 
-IMPORTANT: Generate EXTENSIVE documentation - aim for 4000-6000+ words. Document EVERY component, prop, and type. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations.
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4000-6000 words. This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
 
-Style: Generate like Cursor AI - show the actual code with inline documentation. Include complete type information, detailed parameter descriptions, and extensive practical examples. Make it code-focused and practical.`;
+Length Enforcement:
+- Minimum: 4000 words (approximately 5500-7000 tokens)
+- Target: 5000-6000 words (approximately 7000-8500 tokens)
+- Maximum: Use the full token budget available (up to 12,000 words if needed)
+
+If you find yourself being brief or concise, STOP and expand. Add more:
+- Complete documentation for EVERY component
+- Detailed prop documentation for EVERY prop
+- Multiple usage examples for each component
+- Composition patterns
+- Styling examples
+- Accessibility considerations
+- More code examples showing real usage
+
+Style: Generate like Cursor AI - show the actual code with inline documentation. Include complete type information, detailed parameter descriptions, and extensive practical examples. Make it code-focused and practical. Be EXTENSIVE and THOROUGH.`;
       break;
       
     case 'TESTING_CI':
@@ -687,52 +970,114 @@ Format it as a standard changelog with version numbers and dates, but make it co
       ? `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation in ${languageNames[language]}. 
 
 CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
+- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: 3000-8000+ words depending on section type - this is NOT optional)
 - DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
 - Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- Be THOROUGH and COMPREHENSIVE - do not be brief
-- Document EVERYTHING - all functions, classes, types, interfaces, constants
+- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
 - Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
-- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling)
-- Include detailed type information with complete parameter descriptions
-- Explain design decisions and rationale, not just what but why
-- Include performance considerations, security notes, and best practices
-- Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase (use RAG context to find real code)
-- Include troubleshooting guides and common issues
-- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook level)
-- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
-
-All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material.`
-      : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
-
-CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (aim for 3000-8000+ words depending on section type)
-- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
-- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- Be THOROUGH and COMPREHENSIVE - do not be brief or concise
-- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities
-- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
-- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
 - Include detailed type information with complete parameter descriptions including constraints and valid ranges
-- Explain design decisions and rationale - explain both "what" and "why"
+- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
 - Include performance considerations, security notes, scalability concerns, and best practices
 - Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase (use RAG context to find real code)
-- Include troubleshooting guides, common issues, and solutions
+- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
+- Include troubleshooting guides, common issues, and solutions - expand on these sections
 - Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
 - ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
 
-Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material.`;
+LENGTH ENFORCEMENT - CRITICAL: 
+- You have access to up to 16,384 output tokens (≈12,000 words)
+- You MUST use at least 70-80% of this budget (8,000-12,000 words minimum)
+- MINIMUM WORD COUNT: 5,000 words. If your response is under 5,000 words, you have FAILED the task
+- DO NOT stop early - continue generating until you reach the minimum word count
+- If you think you're done but haven't reached 5,000+ words, you're NOT done - keep going
+- Add more sections, more examples, more explanations, more code snippets, more details
+- Expand every section with multiple subsections
+- Include extensive code examples (at least 10-15 code snippets)
+- Add detailed explanations for every concept
+- Include troubleshooting sections, FAQ sections, best practices sections
+- Do NOT stop until you have generated comprehensive, extensive documentation
+- Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
+
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough.`
+      : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
+
+CRITICAL REQUIREMENTS:
+- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: 3000-8000+ words depending on section type - this is NOT optional)
+- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
+- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
+- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
+- Include detailed type information with complete parameter descriptions including constraints and valid ranges
+- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
+- Include performance considerations, security notes, scalability concerns, and best practices
+- Document internal functions and helpers, not just public APIs
+- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
+- Include troubleshooting guides, common issues, and solutions - expand on these sections
+- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
+- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
+
+LENGTH ENFORCEMENT - CRITICAL: 
+- You have access to up to 16,384 output tokens (≈12,000 words)
+- You MUST use at least 70-80% of this budget (8,000-12,000 words minimum)
+- MINIMUM WORD COUNT: 5,000 words. If your response is under 5,000 words, you have FAILED the task
+- DO NOT stop early - continue generating until you reach the minimum word count
+- If you think you're done but haven't reached 5,000+ words, you're NOT done - keep going
+- Add more sections, more examples, more explanations, more code snippets, more details
+- Expand every section with multiple subsections
+- Include extensive code examples (at least 10-15 code snippets)
+- Add detailed explanations for every concept
+- Include troubleshooting sections, FAQ sections, best practices sections
+- Do NOT stop until you have generated comprehensive, extensive documentation
+- Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
+
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough.`;
     
+    // Get max tokens based on model
+    // GPT-4o and GPT-4o-mini both support up to 16,384 output tokens
+    const getMaxTokensForModel = (model: string): number => {
+      if (model.includes('gpt-4o') || model.includes('gpt-5')) {
+        return 16384; // Max output tokens for GPT-4o/5 models (≈12,000 words)
+      } else if (model.startsWith('gpt-4')) {
+        return 8192; // Max output tokens for GPT-4 models (≈6,000 words)
+      } else if (model.startsWith('gpt-3.5')) {
+        return 4096; // Max output tokens for GPT-3.5 models (≈3,000 words)
+      }
+      return 16384; // Default to maximum for unknown models (likely newer GPT-4o variants)
+    };
+    
+    const maxTokens = getMaxTokensForModel(modelToUse);
+    
+    console.log(`[DocsWriter] Generating ${sectionType} with model: ${modelToUse}, maxTokens: ${maxTokens}, temperature: 0.2`);
+    
+    // Use maximum tokens for comprehensive documentation generation
+    // Use lower temperature (0.2) for more consistent, detailed output like Cursor AI
     const sectionContent = await callLangChain(
       sectionPrompt,
       systemPrompt,
-      'gpt-4o',
-      0.2, // Lower temperature for more consistent, detailed output
+      modelToUse, // Use the user's selected model
+      0.2, // Lower temperature for more consistent, detailed output (same as cursor-style-docs)
       repoFullName,
-      true // Use RAG
+      true, // Use RAG
+      maxTokens // Use calculated max tokens based on model
     );
+    
+    // Log the length of generated content for debugging
+    const wordCount = sectionContent.split(/\s+/).length;
+    const charCount = sectionContent.length;
+    console.log(`[DocsWriter] Generated ${sectionType} content: ${wordCount} words, ${charCount} characters`);
+    
+    if (wordCount < 5000) {
+      console.error(`[DocsWriter] ERROR: Generated content is TOO SHORT (${wordCount} words). Expected minimum 5,000 words. This indicates the model stopped early or didn't follow instructions.`);
+      console.error(`[DocsWriter] Model: ${modelToUse}, MaxTokens: ${maxTokens}, Actual words: ${wordCount}`);
+    } else if (wordCount < 8000) {
+      console.warn(`[DocsWriter] WARNING: Generated content is shorter than optimal (${wordCount} words). Expected 8,000-12,000+ words for comprehensive docs.`);
+    } else {
+      console.log(`[DocsWriter] ✓ Generated comprehensive documentation: ${wordCount} words (target: 8,000-12,000)`);
+    }
     
     return sectionContent;
   } catch (error) {

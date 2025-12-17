@@ -6,28 +6,17 @@
 import { AgentState, AgentStep, AgentNode, GraphEdge } from './types';
 import { repoDiscoveryAgent } from './RepoDiscovery';
 import { repoAnalysisAgent } from './RepoAnalysis';
-import { qualityAnalyzerAgent } from './QualityAnalyzer';
-import { refactorProposalAgent } from './RefactorProposal';
 import { docsPlannerAgent } from './DocsPlanner';
 import { docsWriterAgent } from './DocsWriter';
-import { gitOpsAgent } from './GitOps';
 
 /**
  * Agent Graph Definition
  */
 export const agentGraph: GraphEdge[] = [
   { from: AgentStep.DISCOVERY, to: AgentStep.ANALYSIS },
-  { from: AgentStep.ANALYSIS, to: AgentStep.QUALITY },
-  { from: AgentStep.QUALITY, to: AgentStep.REFACTOR },
-  { from: AgentStep.REFACTOR, to: AgentStep.PLANNING },
+  { from: AgentStep.ANALYSIS, to: AgentStep.PLANNING },
   { from: AgentStep.PLANNING, to: AgentStep.WRITING },
-  { 
-    from: AgentStep.WRITING, 
-    to: AgentStep.GITOPS,
-    condition: (state) => state.autoCommit === true // Only go to GitOps if autoCommit is enabled
-  },
-  { from: AgentStep.WRITING, to: AgentStep.COMPLETE }, // Skip GitOps if autoCommit is false
-  { from: AgentStep.GITOPS, to: AgentStep.COMPLETE },
+  { from: AgentStep.WRITING, to: AgentStep.COMPLETE },
 ];
 
 /**
@@ -54,31 +43,9 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
       name: 'RepoAnalysis',
       execute: repoAnalysisAgent,
       shouldRun: (state) => 
-        state.completedSteps?.has(AgentStep.DISCOVERY) && 
+        !!(state.completedSteps?.has(AgentStep.DISCOVERY) && 
         !state.completedSteps?.has(AgentStep.ANALYSIS) &&
-        !!state.discoveredRepos && state.discoveredRepos.length > 0,
-    },
-  ],
-  [
-    AgentStep.QUALITY,
-    {
-      name: 'QualityAnalyzer',
-      execute: qualityAnalyzerAgent,
-      shouldRun: (state) =>
-        state.completedSteps?.has(AgentStep.ANALYSIS) &&
-        !state.completedSteps?.has(AgentStep.QUALITY) &&
-        !!state.repoAnalyses && state.repoAnalyses.size > 0,
-    },
-  ],
-  [
-    AgentStep.REFACTOR,
-    {
-      name: 'RefactorProposal',
-      execute: refactorProposalAgent,
-      shouldRun: (state) =>
-        state.completedSteps?.has(AgentStep.QUALITY) &&
-        !state.completedSteps?.has(AgentStep.REFACTOR) &&
-        !!state.repoAnalyses && state.repoAnalyses.size > 0,
+        state.discoveredRepos && state.discoveredRepos.length > 0),
     },
   ],
   [
@@ -87,9 +54,9 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
       name: 'DocsPlanner',
       execute: docsPlannerAgent,
       shouldRun: (state) =>
-        state.completedSteps?.has(AgentStep.REFACTOR) &&
+        !!(state.completedSteps?.has(AgentStep.ANALYSIS) &&
         !state.completedSteps?.has(AgentStep.PLANNING) &&
-        !!state.repoAnalyses && state.repoAnalyses.size > 0,
+        state.repoAnalyses && state.repoAnalyses.size > 0),
     },
   ],
   [
@@ -98,22 +65,9 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
       name: 'DocsWriter',
       execute: docsWriterAgent,
       shouldRun: (state) =>
-        state.completedSteps?.has(AgentStep.PLANNING) &&
+        !!(state.completedSteps?.has(AgentStep.PLANNING) &&
         !state.completedSteps?.has(AgentStep.WRITING) &&
-        !!state.documentationPlans && state.documentationPlans.size > 0,
-    },
-  ],
-  [
-    AgentStep.GITOPS,
-    {
-      name: 'GitOps',
-      execute: gitOpsAgent,
-      shouldRun: (state) =>
-        // Only run GitOps if autoCommit is enabled and we have generated docs
-        state.autoCommit === true &&
-        state.completedSteps?.has(AgentStep.WRITING) &&
-        !state.completedSteps?.has(AgentStep.GITOPS) &&
-        !!state.generatedDocsFull && state.generatedDocsFull.size > 0,
+        state.documentationPlans && state.documentationPlans.size > 0),
     },
   ],
 ]);
@@ -235,14 +189,12 @@ export class AgentManager {
     });
     
     let currentStep: AgentStep | null = AgentStep.DISCOVERY;
-    let previousStep: AgentStep | null = null;
     let iterations = 0;
     const maxIterations = 20; // Prevent infinite loops
 
     while (currentStep && currentStep !== AgentStep.COMPLETE && iterations < maxIterations) {
       try {
         iterations++;
-        previousStep = currentStep;
         
         console.log(`[Manager] === Iteration ${iterations}: Executing step ${currentStep} ===`);
         console.log(`[Manager] State before step:`, {

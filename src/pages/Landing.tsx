@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-import { Sparkles, Flame, Heart, MessageCircle, Zap, GitBranch } from 'lucide-react';
+import { Sparkles, Flame, Heart, MessageCircle, Zap } from 'lucide-react';
 import Footer from '../components/Footer';
 import { useTranslation } from '../lib/translations';
 import { DocLanguage } from '../types/core';
@@ -26,31 +26,31 @@ export default function Landing({ onGenerate }: LandingProps) {
   const t = useTranslation(selectedLanguage);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
       <motion.header 
-        className="bg-white border-b border-gray-100 sticky top-0 z-50"
+        className="glass sticky top-0 z-50"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <motion.div 
-            className="flex items-center gap-2"
+            className="flex items-center gap-3"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
           >
             <motion.div 
-              className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+              className="p-2.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg"
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
             >
               <Flame className="w-6 h-6 text-white" />
             </motion.div>
-            <span className="text-xl font-bold text-gray-900">{t('gitScribe')}</span>
+            <span className="text-2xl font-black gradient-text">{t('gitScribe')}</span>
           </motion.div>
           <motion.div 
-            className="flex items-center gap-2"
+            className="flex items-center gap-3"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
@@ -59,7 +59,7 @@ export default function Landing({ onGenerate }: LandingProps) {
             <motion.select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value as DocLanguage)}
-              className="px-3 py-2 text-sm font-semibold rounded-xl bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white border border-slate-200 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+              className="px-4 py-2.5 text-sm font-semibold rounded-xl glass text-slate-700 hover:bg-white/90 border border-slate-200/50 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
               title="Translate page"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -72,40 +72,40 @@ export default function Landing({ onGenerate }: LandingProps) {
         </div>
       </motion.header>
 
-      <main className="max-w-7xl mx-auto px-4">
-        <section className="py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="py-16 sm:py-20 lg:py-24">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
               <motion.div 
-                className="mb-6 flex items-center gap-2"
+                className="mb-6 flex items-center gap-3"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
                 <motion.div 
-                  className="h-1 w-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+                  className="h-1.5 w-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full shadow-sm"
                   initial={{ width: 0 }}
-                  animate={{ width: 48 }}
+                  animate={{ width: 64 }}
                   transition={{ delay: 0.3, duration: 0.5 }}
                 />
-                <span className="text-orange-600 font-semibold text-sm">{t('aiPowered')}</span>
+                <span className="text-orange-600 font-bold text-sm uppercase tracking-wide">{t('aiPowered')}</span>
               </motion.div>
 
               <motion.h1 
-                className="text-6xl font-black text-gray-900 mb-6 leading-tight"
+                className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-6 leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                {t('aiPoweredDocumentationTitle')}
+                <span className="gradient-text">{t('aiPoweredDocumentationTitle')}</span>
               </motion.h1>
 
               <motion.p 
-                className="text-xl text-gray-600 mb-8 leading-relaxed"
+                className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
@@ -126,22 +126,22 @@ export default function Landing({ onGenerate }: LandingProps) {
                 ].map((item, index) => (
                   <motion.div
                     key={index}
-                    className="flex items-start gap-3"
+                    className="flex items-start gap-4 p-4 rounded-xl hover:bg-white/50 transition-colors"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.9 + index * 0.1, duration: 0.5 }}
                     whileHover={{ x: 5, transition: { duration: 0.2 } }}
                   >
                     <motion.div 
-                      className="p-2 bg-orange-100 rounded-lg"
+                      className="p-3 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-sm"
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       transition={{ type: "spring", stiffness: 300 }}
                     >
-                      <item.icon className="w-5 h-5 text-orange-600" />
+                      <item.icon className="w-6 h-6 text-orange-600" />
                     </motion.div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.title}</p>
-                      <p className="text-gray-600">{item.desc}</p>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 mb-1">{item.title}</p>
+                      <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -155,10 +155,10 @@ export default function Landing({ onGenerate }: LandingProps) {
               transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
             >
               <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-orange-100 to-red-100 rounded-3xl blur-2xl opacity-50"
+                className="absolute inset-0 bg-gradient-to-r from-orange-200/50 to-red-200/50 rounded-3xl blur-3xl opacity-60"
                 animate={{ 
                   scale: [1, 1.05, 1],
-                  opacity: [0.5, 0.6, 0.5]
+                  opacity: [0.6, 0.7, 0.6]
                 }}
                 transition={{ 
                   duration: 4,
@@ -167,7 +167,7 @@ export default function Landing({ onGenerate }: LandingProps) {
                 }}
               />
               <motion.div 
-                className="relative bg-white rounded-3xl shadow-2xl p-8 border border-orange-100"
+                className="relative card-gradient p-8 lg:p-10"
                 whileHover={{ scale: 1.02, y: -5 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
@@ -208,10 +208,10 @@ export default function Landing({ onGenerate }: LandingProps) {
                 <div className="space-y-4">
                   <motion.button
                     onClick={onGenerate}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
+                    className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-3"
                     whileHover={{ 
                       scale: 1.05,
-                      boxShadow: "0 10px 30px rgba(249, 115, 22, 0.4)"
+                      boxShadow: "0 10px 40px rgba(249, 115, 22, 0.5)"
                     }}
                     whileTap={{ scale: 0.98 }}
                     initial={{ opacity: 0, y: 20 }}
@@ -241,7 +241,7 @@ export default function Landing({ onGenerate }: LandingProps) {
           </div>
         </section>
 
-        <section className="py-20 border-t border-gray-100">
+        <section className="py-20 lg:py-24 border-t border-gray-200/50">
           <motion.div 
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -249,23 +249,22 @@ export default function Landing({ onGenerate }: LandingProps) {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl font-black text-gray-900 mb-4">
-              {t('whyChooseOurTool')}
+            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
+              <span className="gradient-text">{t('whyChooseOurTool')}</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               {t('whyChooseOurToolDescription')}
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
             {[
               { icon: Zap, title: t('aiAgentWorkflows'), desc: t('aiAgentWorkflowsDescription'), color: 'orange' },
-              { icon: GitBranch, title: t('autoUpdateFollow'), desc: t('autoUpdateFollowDescription'), color: 'red' },
               { icon: MessageCircle, title: t('githubIntegrationFeature'), desc: t('githubIntegrationFeatureDescription'), color: 'orange' }
             ].map((item, index) => (
               <motion.div
                 key={index}
-                className="group"
+                className="group card"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
@@ -273,7 +272,7 @@ export default function Landing({ onGenerate }: LandingProps) {
                 whileHover={{ y: -10, transition: { duration: 0.3 } }}
               >
                 <motion.div 
-                  className={`relative mb-6 h-40 bg-gradient-to-br from-${item.color}-50 to-${item.color === 'orange' ? 'red' : 'orange'}-50 rounded-2xl overflow-hidden flex items-center justify-center`}
+                  className={`relative mb-6 h-40 bg-gradient-to-br from-${item.color}-50 to-${item.color === 'orange' ? 'red' : 'orange'}-50 rounded-2xl overflow-hidden flex items-center justify-center shadow-md`}
                   whileHover={{ scale: 1.05 }}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
@@ -288,11 +287,11 @@ export default function Landing({ onGenerate }: LandingProps) {
                       delay: index * 0.5
                     }}
                   >
-                    <item.icon className={`w-16 h-16 text-${item.color}-400`} />
+                    <item.icon className={`w-16 h-16 text-${item.color}-500`} />
                   </motion.div>
                 </motion.div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 leading-relaxed">
                   {item.desc}
                 </p>
               </motion.div>
@@ -300,9 +299,9 @@ export default function Landing({ onGenerate }: LandingProps) {
           </div>
         </section>
 
-        <section className="py-20">
+        <section className="py-20 lg:py-24">
           <motion.div 
-            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-12 text-center text-white relative overflow-hidden"
+            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-8 lg:p-12 text-center text-white relative overflow-hidden shadow-2xl"
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -347,10 +346,10 @@ export default function Landing({ onGenerate }: LandingProps) {
               </p>
               <motion.button
                 onClick={onGenerate}
-                className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg inline-block flex items-center gap-2 mx-auto"
+                className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg inline-block flex items-center gap-2 mx-auto shadow-xl hover:shadow-2xl"
                 whileHover={{ 
                   scale: 1.05,
-                  boxShadow: "0 10px 40px rgba(255, 255, 255, 0.3)"
+                  boxShadow: "0 10px 40px rgba(255, 255, 255, 0.4)"
                 }}
                 whileTap={{ scale: 0.98 }}
                 initial={{ opacity: 0, y: 20 }}

@@ -406,8 +406,6 @@ export type TranslationKey =
   | 'createsStructuredPlan'
   | 'docsWriter'
   | 'generatesDocumentation'
-  | 'gitOps'
-  | 'commitsDocumentation'
   | 'learnMore'
   | 'exploreOtherPages'
   | 'aiPoweredOverview'
@@ -1016,8 +1014,6 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     createsStructuredPlan: '- Creates structured documentation plan',
     docsWriter: 'DocsWriter',
     generatesDocumentation: '- Generates documentation in selected formats',
-    gitOps: 'GitOps',
-    commitsDocumentation: '- Commits documentation to repositories',
     learnMore: 'Learn More',
     exploreOtherPages: 'Explore the other pages in this documentation section for detailed information about each feature and how to use them effectively.',
     aiPoweredOverview: 'GitScribe uses OpenAI\'s advanced language models to analyze your codebase and generate comprehensive, well-structured documentation. Our AI understands code context, relationships, and best practices to create documentation that\'s both accurate and readable.',
@@ -1622,8 +1618,6 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     createsStructuredPlan: '- Crée un plan de documentation structuré',
     docsWriter: 'DocsWriter',
     generatesDocumentation: '- Génère la documentation dans les formats sélectionnés',
-    gitOps: 'GitOps',
-    commitsDocumentation: '- Valide la documentation dans les dépôts',
     learnMore: 'En Savoir Plus',
     exploreOtherPages: 'Explorez les autres pages de cette section de documentation pour des informations détaillées sur chaque fonctionnalité et comment les utiliser efficacement.',
     aiPoweredOverview: 'GitScribe utilise les modèles de langage avancés d\'OpenAI pour analyser votre base de code et générer une documentation complète et bien structurée. Notre IA comprend le contexte du code, les relations et les meilleures pratiques pour créer une documentation à la fois précise et lisible.',
@@ -2228,8 +2222,6 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     createsStructuredPlan: '- Erstellt einen strukturierten Dokumentationsplan',
     docsWriter: 'DocsWriter',
     generatesDocumentation: '- Generiert Dokumentation in ausgewählten Formaten',
-    gitOps: 'GitOps',
-    commitsDocumentation: '- Committet Dokumentation in Repositories',
     learnMore: 'Mehr Erfahren',
     exploreOtherPages: 'Erkunden Sie die anderen Seiten in diesem Dokumentationsabschnitt für detaillierte Informationen zu jeder Funktion und wie Sie sie effektiv verwenden.',
     aiPoweredOverview: 'GitScribe nutzt die fortgeschrittenen Sprachmodelle von OpenAI, um Ihre Codebasis zu analysieren und umfassende, gut strukturierte Dokumentation zu generieren. Unsere KI versteht Code-Kontext, Beziehungen und Best Practices, um Dokumentation zu erstellen, die sowohl genau als auch lesbar ist.',

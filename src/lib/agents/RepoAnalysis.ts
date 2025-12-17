@@ -24,19 +24,13 @@ export async function repoAnalysisAgent(state: AgentState): Promise<Partial<Agen
 
   const token = getGitHubToken();
   const analyses = new Map<string, RepoAnalysisType>();
-  let current = 0;
+  const total = state.discoveredRepos.length;
+  let completed = 0;
 
-  for (const repo of state.discoveredRepos) {
+  // Process all repositories in parallel
+  const analysisPromises = state.discoveredRepos.map(async (repo) => {
     try {
-      current++;
-      updates.progress = {
-        current,
-        total: state.discoveredRepos.length,
-        currentRepo: repo.fullName,
-        currentAgent: 'RepoAnalysis',
-      };
-
-      console.log(`[RepoAnalysis] Analyzing ${repo.fullName} (${current}/${state.discoveredRepos.length})`);
+      console.log(`[RepoAnalysis] Starting analysis for ${repo.fullName}`);
 
       const [owner, repoName] = repo.fullName.split('/');
       const branch = repo.defaultBranch || 'main';
@@ -196,12 +190,43 @@ Format as JSON:
         complexity,
       };
 
-      analyses.set(repo.fullName, analysis);
+      completed++;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repo.fullName,
+        currentAgent: 'RepoAnalysis',
+      };
+      console.log(`[RepoAnalysis] Completed analysis for ${repo.fullName} (${completed}/${total})`);
+
+      return { repoFullName: repo.fullName, analysis, error: null };
     } catch (error: any) {
+      completed++;
       console.error(`[RepoAnalysis] Error analyzing ${repo.fullName}:`, error);
-      const errorKey = `analysis_${repo.fullName}`;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repo.fullName,
+        currentAgent: 'RepoAnalysis',
+      };
+      return { 
+        repoFullName: repo.fullName, 
+        analysis: null, 
+        error: { key: `analysis_${repo.fullName}`, message: error.message || 'Analysis failed' }
+      };
+    }
+  });
+
+  // Wait for all analyses to complete
+  const results = await Promise.all(analysisPromises);
+
+  // Process results
+  for (const result of results) {
+    if (result.analysis) {
+      analyses.set(result.repoFullName, result.analysis);
+    } else if (result.error) {
       if (!updates.errors) updates.errors = new Map();
-      updates.errors.set(errorKey, error.message || 'Analysis failed');
+      updates.errors.set(result.error.key, result.error.message);
     }
   }
 

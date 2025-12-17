@@ -220,7 +220,7 @@ Always include the actual code with extensive documentation comments added. Be t
     const documentedCode = await callLangChain(
       prompt,
       systemPrompt,
-      'gpt-4o',
+      'gpt-4o-mini', // Use gpt-4o-mini for everything except main documentation writing
       0.2, // Lower temperature for more consistent, detailed output
       repo.fullName,
       true // Use RAG
@@ -365,7 +365,7 @@ Return only the documented code with extensive comments added.`;
 - Make it as comprehensive as professional API documentation
 
 Be thorough and detailed - aim for documentation quality similar to MDN, TypeScript Handbook, or major open-source projects.`,
-      'gpt-4o',
+      'gpt-4o-mini', // Use gpt-4o-mini for everything except main documentation writing
       0.2, // Lower temperature for more consistent, detailed output
       repoName,
       true

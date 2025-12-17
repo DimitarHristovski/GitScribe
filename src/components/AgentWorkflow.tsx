@@ -3,7 +3,7 @@
  * Provides UI for repo selection and agent workflow execution
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Play, CheckCircle2, XCircle, Loader2, Github, FileText, Sparkles, ArrowRight, BarChart3, FolderTree, Award, Download, Copy } from 'lucide-react';
 import { SimpleRepo } from '../lib/github-service';
 import { AgentState, AgentStep } from '../lib/agents/types';
@@ -16,6 +16,7 @@ interface AgentWorkflowProps {
   selectedOutputFormats?: DocOutputFormat[];
   selectedSectionTypes?: DocSectionType[];
   selectedLanguage?: DocLanguage;
+  selectedModel?: string;
   onReposChange: (repos: SimpleRepo[]) => void;
   onComplete: (state: AgentState) => void;
 }
@@ -25,6 +26,7 @@ export default function AgentWorkflow({
   selectedOutputFormats = ['markdown'],
   selectedSectionTypes = ['README'],
   selectedLanguage: propSelectedLanguage = 'en',
+  selectedModel = 'gpt-4o-mini',
   onReposChange,
   onComplete,
 }: AgentWorkflowProps) {
@@ -40,7 +42,7 @@ export default function AgentWorkflow({
   });
   const t = useTranslation(selectedLanguage);
 
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
     if (selectedRepos.length === 0) {
       setError(t('pleaseSelectAtLeastOneRepository'));
       return;
@@ -57,6 +59,7 @@ export default function AgentWorkflow({
       selectedOutputFormats,
       selectedSectionTypes,
       selectedLanguage,
+      selectedModel: selectedModel,
       completedSteps: new Set(),
     };
 
@@ -83,7 +86,21 @@ export default function AgentWorkflow({
     } finally {
       setRunning(false);
     }
-  };
+  }, [selectedRepos, selectedOutputFormats, selectedSectionTypes, selectedLanguage, selectedModel, onComplete, t]);
+
+  // Auto-start workflow when event is dispatched
+  useEffect(() => {
+    const handleAutoStart = () => {
+      if (!running && selectedRepos.length > 0) {
+        handleRun();
+      }
+    };
+
+    window.addEventListener('autoStartWorkflow', handleAutoStart);
+    return () => {
+      window.removeEventListener('autoStartWorkflow', handleAutoStart);
+    };
+  }, [running, selectedRepos.length, handleRun]);
 
   const getStepStatus = (step: AgentStep): 'pending' | 'running' | 'completed' | 'error' => {
     if (!currentState) return 'pending';
@@ -114,10 +131,6 @@ export default function AgentWorkflow({
         return t('repositoryDiscovery');
       case AgentStep.ANALYSIS:
         return t('repositoryAnalysis');
-      case AgentStep.QUALITY:
-        return t('qualityAnalysis');
-      case AgentStep.REFACTOR:
-        return t('refactorProposal');
       case AgentStep.PLANNING:
         return t('documentationPlanning');
       case AgentStep.WRITING:
@@ -132,8 +145,6 @@ export default function AgentWorkflow({
   const steps: AgentStep[] = [
     AgentStep.DISCOVERY,
     AgentStep.ANALYSIS,
-    AgentStep.QUALITY,
-    AgentStep.REFACTOR,
     AgentStep.PLANNING,
     AgentStep.WRITING,
   ];
@@ -150,23 +161,12 @@ export default function AgentWorkflow({
             {t('automatedPipeline')}
           </p>
         </div>
-        <button
-          onClick={handleRun}
-          disabled={running || selectedRepos.length === 0}
-          className="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-xl hover:from-red-700 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
-        >
-          {running ? (
-            <>
+        {running && (
+          <div className="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-xl font-semibold shadow-lg flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>{t('running')}</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-5 h-5" />
-              <span>{t('runWorkflow')}</span>
-            </>
+          </div>
           )}
-        </button>
       </div>
 
       {/* Selected Configuration Display */}
@@ -271,9 +271,6 @@ export default function AgentWorkflow({
 
       {/* Results Summary - Show as data becomes available */}
       {(currentState?.currentStep === AgentStep.COMPLETE || 
-        currentState?.qualityReports || 
-        currentState?.refactorProposals || 
-        currentState?.badges || 
         currentState?.generatedDocsFull) && (
         <div className="mt-6 space-y-4">
           {/* Workflow Status Summary */}
