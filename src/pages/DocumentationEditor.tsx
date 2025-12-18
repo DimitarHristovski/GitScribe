@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save, CheckCircle, FlaskConical } from 'lucide-react';
+import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save, CheckCircle } from 'lucide-react';
 import Assistant from '../components/Assistant';
 import MultiRepoSelector from '../components/MultiRepoSelector';
 import AgentWorkflow from '../components/AgentWorkflow';
 import Footer from '../components/Footer';
-import { exportDocumentation, generateDocumentationFromGitHub } from '../lib/documentation-writer';
+import { exportDocumentation } from '../lib/documentation-writer';
 import { setGitHubToken as saveGitHubToken, getGitHubToken, SimpleRepo, createOrUpdateFile } from '../lib/github-service';
-import { setOpenAIApiKey, getOpenAIApiKey, callLangChain } from '../lib/langchain-service';
+import { setOpenAIApiKey, getOpenAIApiKey } from '../lib/langchain-service';
 import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage } from '../types/core';
 import { useTranslation } from '../lib/translations';
 
@@ -21,7 +21,6 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   const [selectedFormat, setSelectedFormat] = useState<DocOutputFormat>('markdown');
   const [selectedSectionType, setSelectedSectionType] = useState<DocSectionType>('README');
   const [generating, setGenerating] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string>('');
   const [selectedRepos, setSelectedRepos] = useState<SimpleRepo[]>([]);
   const [showRepoSelector, setShowRepoSelector] = useState(false);
@@ -238,80 +237,6 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     }
   };
 
-  // Quick test generation without agents (for fast testing)
-  const handleQuickTest = async () => {
-    if (selectedRepos.length === 0) {
-      setError('Please select at least one repository');
-      return;
-    }
-
-    setTesting(true);
-    setError('');
-    setBatchProgress({ current: 0, total: 1, repo: selectedRepos[0].fullName });
-
-    try {
-      const repo = selectedRepos[0]; // Test with first repo only
-      const githubUrl = repo.htmlUrl || `https://github.com/${repo.fullName}`;
-      
-      // Generate basic markdown documentation
-      const basicDoc = await generateDocumentationFromGitHub(githubUrl, {
-        format: 'markdown',
-        includeCode: true,
-        includeProps: true,
-        includeExamples: true,
-        depth: 'detailed',
-      });
-
-      // If user selected a section type, enhance with AI (optional)
-      if (selectedSectionTypes.length > 0 && selectedSectionTypes[0] !== 'README') {
-        const sectionType = selectedSectionTypes[0];
-        const enhancementPrompt = `Enhance this documentation with a ${sectionType} section. Keep the existing content and add a comprehensive ${sectionType} section at the end.
-
-${basicDoc}
-
-Generate a detailed ${sectionType} section that complements the existing documentation.`;
-
-        try {
-          const enhancedContent = await callLangChain(
-            enhancementPrompt,
-            `You are a documentation expert. Enhance documentation with a ${sectionType} section.`,
-            selectedModel,
-            0.7,
-            repo.fullName,
-            true, // Use RAG
-            4096 // Reasonable max tokens
-          );
-          
-          const finalDoc = `${basicDoc}\n\n---\n\n${enhancedContent}`;
-          setDocumentation(finalDoc);
-          repoDocumentations.set(repo.fullName, finalDoc);
-          setRepoDocumentations(new Map(repoDocumentations));
-        } catch (aiError) {
-          console.warn('AI enhancement failed, using basic doc:', aiError);
-          setDocumentation(basicDoc);
-          repoDocumentations.set(repo.fullName, basicDoc);
-          setRepoDocumentations(new Map(repoDocumentations));
-        }
-      } else {
-        setDocumentation(basicDoc);
-        repoDocumentations.set(repo.fullName, basicDoc);
-        setRepoDocumentations(new Map(repoDocumentations));
-      }
-
-      setBatchProgress({ current: 1, total: 1, repo: repo.fullName });
-      setNotification({ 
-        message: `Quick test completed for ${repo.fullName}`, 
-        type: 'success',
-        repoName: repo.fullName 
-      });
-    } catch (err: any) {
-      setError(`Quick test failed: ${err.message}`);
-      console.error('Quick test error:', err);
-    } finally {
-      setTesting(false);
-      setBatchProgress(null);
-    }
-  };
 
   // Save documentation updates (used by both manual editing and AI Assistant)
   const saveDocumentationUpdate = (updatedDoc: string, source: 'manual' | 'assistant' = 'manual') => {
@@ -2020,15 +1945,6 @@ ${documentation.split('\n').map(line => {
                 {t('cancel')}
               </button>
               <button
-                onClick={handleQuickTest}
-                disabled={selectedRepos.length === 0 || testing}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                title="Quick test generation without agents (uses first repo only)"
-              >
-                <FlaskConical className="w-4 h-4" />
-                {testing ? 'Testing...' : 'Test'}
-              </button>
-              <button
                 onClick={() => {
                   if (tempSelectedFormats.length === 0) {
                     setError(t('selectAtLeastOneFormat'));
@@ -2101,15 +2017,18 @@ ${documentation.split('\n').map(line => {
                     generatedDocsSize: state.generatedDocs?.size || 0,
                     hasGeneratedDocsFull: !!state.generatedDocsFull,
                     generatedDocsFullSize: state.generatedDocsFull?.size || 0,
+                    hasErrors: !!state.errors && state.errors.size > 0,
+                    errorsCount: state.errors?.size || 0,
                   });
-                  
                   
                   // Update documentation from agent results
                   if (state.generatedDocs && state.generatedDocs.size > 0) {
                     const newDocs = new Map<string, string>();
+                    const repoNames: string[] = [];
                     state.generatedDocs.forEach((doc, repoFullName) => {
                       console.log(`[DocumentationEditor] Setting docs for ${repoFullName}, length: ${doc.length}`);
                       newDocs.set(repoFullName, doc);
+                      repoNames.push(repoFullName);
                     });
                     setRepoDocumentations(newDocs);
                     
@@ -2147,8 +2066,33 @@ ${documentation.split('\n').map(line => {
                       }
                     }
                     
+                    // Show success notification (even if there were some errors)
+                    const hasErrors = state.errors && state.errors.size > 0;
+                    const notificationMessage = repoNames.length === 1
+                      ? `Documentation generated successfully for ${repoNames[0]}${hasErrors ? ' (some errors occurred)' : ''}`
+                      : `Documentation generated successfully for ${repoNames.length} repositories${hasErrors ? ' (some errors occurred)' : ''}`;
+                    
+                    setNotification({
+                      message: notificationMessage,
+                      type: hasErrors ? 'info' : 'success', // Use 'info' if there were errors, 'success' if all good
+                      repoName: repoNames.length === 1 ? repoNames[0] : repoNames.join(', '),
+                    });
+                    
+                    // Auto-dismiss notification after 5 seconds (7 seconds if there were errors)
+                    setTimeout(() => {
+                      setNotification(null);
+                    }, hasErrors ? 7000 : 5000);
+                    
                   } else {
                     console.warn('[DocumentationEditor] No generated docs in state!');
+                    // Show error notification
+                    setNotification({
+                      message: 'Documentation generation completed but no documentation was generated. Please check the console for errors.',
+                      type: 'error',
+                    });
+                    setTimeout(() => {
+                      setNotification(null);
+                    }, 5000);
                   }
                   
                   setShowAgentWorkflowModal(false);

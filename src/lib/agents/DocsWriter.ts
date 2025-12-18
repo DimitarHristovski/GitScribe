@@ -76,6 +76,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
       for (const sectionType of selectedSectionTypes) {
         // Generate section-specific content using AI
         // Use the user's selected model (no auto-upgrade)
+        console.log(`[DocsWriter] Generating ${sectionType} content for ${repoFullName}...`);
         const sectionSpecificContent = await generateSectionSpecificContent(
           sectionType,
           githubUrl,
@@ -85,6 +86,14 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
           selectedLanguage,
           modelToUse // Always use the user's selected model
         );
+        
+        const sectionWordCount = sectionSpecificContent.split(/\s+/).length;
+        const sectionCharCount = sectionSpecificContent.length;
+        console.log(`[DocsWriter] Generated ${sectionType} content: ${sectionWordCount} words, ${sectionCharCount} characters`);
+        
+        if (sectionWordCount < 1000) {
+          console.error(`[DocsWriter] WARNING: ${sectionType} content is very short (${sectionWordCount} words). Expected 4000-6000+ words.`);
+        }
 
         for (const format of selectedFormats) {
           try {
@@ -1000,81 +1009,7 @@ Format it as a standard changelog with version numbers and dates, but make it co
   }
 
   try {
-    const systemPrompt = language !== 'en'
-      ? `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation in ${languageNames[language]}. 
-
-CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: 3000-8000+ words depending on section type - this is NOT optional)
-- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
-- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
-- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
-- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
-- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
-- Include detailed type information with complete parameter descriptions including constraints and valid ranges
-- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
-- Include performance considerations, security notes, scalability concerns, and best practices
-- Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
-- Include troubleshooting guides, common issues, and solutions - expand on these sections
-- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
-- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
-
-LENGTH ENFORCEMENT - CRITICAL: 
-- You have access to up to 16,384 output tokens (≈12,000 words)
-- For README sections: MINIMUM 4,500 words (600+ lines), TARGET 5,000-5,500 words (650-700+ lines)
-- For other sections: MINIMUM 3,000-5,000 words depending on section type
-- You MUST use at least 70-80% of this budget for comprehensive documentation
-- If your response is under the minimum word count, you have FAILED the task
-- DO NOT stop early - continue generating until you reach the minimum word count
-- If you think you're done but haven't reached the minimum word count, you're NOT done - keep going
-- Add more sections, more examples, more explanations, more code snippets, more details
-- Expand every section with multiple subsections
-- Include extensive code examples (at least 10-15 code snippets)
-- Add detailed explanations for every concept (3-5 sentences per paragraph)
-- Include troubleshooting sections (7+ items), FAQ sections (7+ items), best practices sections
-- Do NOT stop until you have generated comprehensive, extensive documentation matching professional standards
-- Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
-
-All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`
-      : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
-
-CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: 3000-8000+ words depending on section type - this is NOT optional)
-- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
-- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
-- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
-- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
-- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
-- Include detailed type information with complete parameter descriptions including constraints and valid ranges
-- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
-- Include performance considerations, security notes, scalability concerns, and best practices
-- Document internal functions and helpers, not just public APIs
-- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
-- Include troubleshooting guides, common issues, and solutions - expand on these sections
-- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
-- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
-
-LENGTH ENFORCEMENT - CRITICAL: 
-- You have access to up to 16,384 output tokens (≈12,000 words)
-- For README sections: MINIMUM 4,500 words (600+ lines), TARGET 5,000-5,500 words (650-700+ lines)
-- For other sections: MINIMUM 3,000-5,000 words depending on section type
-- You MUST use at least 70-80% of this budget for comprehensive documentation
-- If your response is under the minimum word count, you have FAILED the task
-- DO NOT stop early - continue generating until you reach the minimum word count
-- If you think you're done but haven't reached the minimum word count, you're NOT done - keep going
-- Add more sections, more examples, more explanations, more code snippets, more details
-- Expand every section with multiple subsections
-- Include extensive code examples (at least 10-15 code snippets)
-- Add detailed explanations for every concept (3-5 sentences per paragraph)
-- Include troubleshooting sections (7+ items), FAQ sections (7+ items), best practices sections
-- Do NOT stop until you have generated comprehensive, extensive documentation matching professional standards
-- Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
-
-Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`;
-    
-    // Get max tokens based on model
+    // Get max tokens based on model FIRST, so we can use it in the prompt
     // GPT-4o and GPT-4o-mini both support up to 16,384 output tokens
     const getMaxTokensForModel = (model: string): number => {
       if (model.includes('gpt-4o') || model.includes('gpt-5')) {
@@ -1088,6 +1023,86 @@ Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Qu
     };
     
     const maxTokens = getMaxTokensForModel(modelToUse);
+    const estimatedWords = Math.floor(maxTokens * 0.75); // Rough estimate: 1 token ≈ 0.75 words
+    
+    // Define word count targets based on section type
+    const wordCountTargets: Record<DocSectionType, { min: number; target: number }> = {
+      'README': { min: 4500, target: 5000 },
+      'ARCHITECTURE': { min: 4000, target: 4500 },
+      'API': { min: 4000, target: 4500 },
+      'COMPONENTS': { min: 5000, target: 6000 },
+      'TESTING_CI': { min: 3000, target: 4000 },
+      'CHANGELOG': { min: 2000, target: 3000 },
+    };
+    
+    const { min: minWords, target: targetWords } = wordCountTargets[sectionType] || { min: 4000, target: 4500 };
+    
+    // Build system prompt with dynamic token and word count information
+    const lengthEnforcementSection = `LENGTH ENFORCEMENT - CRITICAL - READ THIS CAREFULLY: 
+- You have access to ${maxTokens} output tokens (≈${estimatedWords} words)
+- For ${sectionType} sections: MINIMUM ${minWords} words, TARGET ${targetWords} words, MAXIMUM: Use the full token budget (${maxTokens} tokens)
+- You MUST use at least 80-90% of the available token budget (${Math.floor(maxTokens * 0.8)} tokens minimum)
+- If your response is under ${minWords} words, you have FAILED the task and the user will be disappointed
+- DO NOT stop early - continue generating until you reach at least ${targetWords} words
+- If you think you're done but haven't reached ${targetWords} words, you're NOT done - keep going
+- Count your words as you generate - aim for ${targetWords} words, not just ${minWords} words
+- Add more sections, more examples, more explanations, more code snippets, more details
+- Expand every section with multiple subsections (at least 3-5 subsections per major section)
+- Include extensive code examples (at least 15-20 code snippets for README, 20-30 for COMPONENTS)
+- Add detailed explanations for every concept (5-7 sentences per paragraph, not 2-3)
+- Include troubleshooting sections (10+ items), FAQ sections (10+ items), best practices sections (10+ items)
+- Add "Additional Resources", "Related Topics", "See Also" sections to expand content
+- Include multiple "Example" subsections under each major section (at least 3-5 examples per concept)
+- Add "Common Patterns", "Advanced Usage", "Edge Cases" subsections
+- Do NOT stop until you have generated comprehensive, extensive documentation matching professional standards
+- Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
+- Your goal is to generate ${targetWords} words - keep generating until you reach this target.`;
+
+    const systemPrompt = language !== 'en'
+      ? `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation in ${languageNames[language]}. 
+
+CRITICAL REQUIREMENTS:
+- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: ${minWords}-${targetWords}+ words - this is NOT optional)
+- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
+- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
+- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
+- Include detailed type information with complete parameter descriptions including constraints and valid ranges
+- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
+- Include performance considerations, security notes, scalability concerns, and best practices
+- Document internal functions and helpers, not just public APIs
+- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
+- Include troubleshooting guides, common issues, and solutions - expand on these sections
+- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
+- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
+
+${lengthEnforcementSection}
+
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`
+      : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
+
+CRITICAL REQUIREMENTS:
+- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: ${minWords}-${targetWords}+ words - this is NOT optional)
+- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
+- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+- Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
+- Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
+- Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
+- Include detailed type information with complete parameter descriptions including constraints and valid ranges
+- Explain design decisions and rationale - explain both "what" and "why" - be verbose in explanations
+- Include performance considerations, security notes, scalability concerns, and best practices
+- Document internal functions and helpers, not just public APIs
+- Provide extensive code examples from the actual codebase (use RAG context to find real code) - include actual code snippets
+- Include troubleshooting guides, common issues, and solutions - expand on these sections
+- Make it as comprehensive as professional API documentation (MDN, TypeScript Handbook, major open-source projects level)
+- ANALYZE THE ACTUAL CODEBASE - don't rely on reference documentation
+
+${lengthEnforcementSection}
+
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`;
     
     console.log(`[DocsWriter] Generating ${sectionType} with model: ${modelToUse}, maxTokens: ${maxTokens}, temperature: 0.2`);
     
@@ -1106,15 +1121,74 @@ Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Qu
     // Log the length of generated content for debugging
     const wordCount = sectionContent.split(/\s+/).length;
     const charCount = sectionContent.length;
-    console.log(`[DocsWriter] Generated ${sectionType} content: ${wordCount} words, ${charCount} characters`);
+    const lineCount = sectionContent.split('\n').length;
+    console.log(`[DocsWriter] Generated ${sectionType} content: ${wordCount} words, ${charCount} characters, ${lineCount} lines`);
     
-    if (wordCount < 5000) {
-      console.error(`[DocsWriter] ERROR: Generated content is TOO SHORT (${wordCount} words). Expected minimum 5,000 words. This indicates the model stopped early or didn't follow instructions.`);
-      console.error(`[DocsWriter] Model: ${modelToUse}, MaxTokens: ${maxTokens}, Actual words: ${wordCount}`);
-    } else if (wordCount < 8000) {
-      console.warn(`[DocsWriter] WARNING: Generated content is shorter than optimal (${wordCount} words). Expected 8,000-12,000+ words for comprehensive docs.`);
+    // Get word count targets (same as defined above)
+    const wordCountTargetsForValidation: Record<DocSectionType, { min: number; target: number }> = {
+      'README': { min: 4500, target: 5000 },
+      'ARCHITECTURE': { min: 4000, target: 4500 },
+      'API': { min: 4000, target: 4500 },
+      'COMPONENTS': { min: 5000, target: 6000 },
+      'TESTING_CI': { min: 3000, target: 4000 },
+      'CHANGELOG': { min: 2000, target: 3000 },
+    };
+    
+    const { min: minWordsForValidation, target: targetWordsForValidation } = wordCountTargetsForValidation[sectionType] || { min: 4000, target: 4500 };
+    
+    if (wordCount < minWordsForValidation) {
+      console.error(`[DocsWriter] ERROR: Generated content is TOO SHORT (${wordCount} words). Expected minimum ${minWordsForValidation} words for ${sectionType}. This indicates the model stopped early or didn't follow instructions.`);
+      console.error(`[DocsWriter] Model: ${modelToUse}, MaxTokens: ${maxTokens}, Actual words: ${wordCount}, Expected: ${minWordsForValidation}-${targetWordsForValidation}`);
+      console.error(`[DocsWriter] Content preview (first 500 chars): ${sectionContent.substring(0, 500)}...`);
+      
+      // If content is too short, try to enhance it with a follow-up request
+      if (wordCount < minWordsForValidation * 0.7) { // If less than 70% of minimum, try to expand
+        console.warn(`[DocsWriter] Attempting to expand content (${wordCount} words < ${minWordsForValidation} minimum)`);
+        try {
+          const expansionPrompt = `The previous documentation generation for ${sectionType} was too short (${wordCount} words). You MUST expand it to at least ${minWordsForValidation} words (target: ${targetWordsForValidation} words).
+
+Current content:
+${sectionContent}
+
+CRITICAL: You MUST expand this content significantly. Add:
+- More detailed explanations (expand each section with 3-5 additional paragraphs)
+- More code examples (add 5-10 additional code snippets)
+- More subsections (break down existing sections into more detailed subsections)
+- More troubleshooting items (add 5+ more troubleshooting scenarios)
+- More FAQ items (add 5+ more FAQ questions and answers)
+- More examples (add 3-5 more usage examples per major concept)
+- More detailed API documentation (expand parameter descriptions, add more examples)
+- More architecture details (add diagrams descriptions, more design patterns)
+- More best practices (add 5+ more best practice recommendations)
+
+DO NOT just add filler text. Expand meaningfully with real, useful content. The final documentation MUST be at least ${minWordsForValidation} words (target: ${targetWordsForValidation} words). Continue generating until you reach this length.`;
+
+          const expandedContent = await callLangChain(
+            expansionPrompt,
+            `You are a documentation expert. Expand and enhance documentation to meet minimum length requirements (${minWordsForValidation}-${targetWordsForValidation} words). Be thorough and comprehensive.`,
+            modelToUse,
+            0.2,
+            repoFullName,
+            true,
+            maxTokens
+          );
+          
+          const expandedWordCount = expandedContent.split(/\s+/).length;
+          console.log(`[DocsWriter] Expanded content: ${expandedWordCount} words (was ${wordCount})`);
+          
+          if (expandedWordCount >= minWordsForValidation) {
+            return expandedContent;
+          } else {
+            console.warn(`[DocsWriter] Expansion still insufficient (${expandedWordCount} < ${minWordsForValidation}), returning original`);
+          }
+        } catch (expandError) {
+          console.error(`[DocsWriter] Failed to expand content:`, expandError);
+        }
+      }
+    } else if (wordCount < targetWordsForValidation) {
+      console.warn(`[DocsWriter] WARNING: Generated content is shorter than target (${wordCount} words). Target: ${targetWordsForValidation} words for ${sectionType}.`);
     } else {
-      console.log(`[DocsWriter] ✓ Generated comprehensive documentation: ${wordCount} words (target: 8,000-12,000)`);
+      console.log(`[DocsWriter] ✓ Generated comprehensive documentation: ${wordCount} words (target: ${targetWordsForValidation})`);
     }
     
     return sectionContent;

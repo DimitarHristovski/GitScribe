@@ -219,6 +219,9 @@ export type TranslationKey =
   | 'repositoriesSelected'
   | 'repositorySelected'
   | 'noRepositoriesSelected'
+  | 'selectAll'
+  | 'selectAllFiltered'
+  | 'allFilteredReposSelected'
   | 'clearAll'
   | 'done'
   | 'repositoryDiscovery'
@@ -835,6 +838,9 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     repositoriesSelected: 'repositories selected',
     repositorySelected: 'repository selected',
     noRepositoriesSelected: 'No repositories selected',
+    selectAll: 'Select All',
+    selectAllFiltered: 'Select all filtered repositories',
+    allFilteredReposSelected: 'All filtered repositories are already selected',
     clearAll: 'Clear All',
     done: 'Done',
     repositoryDiscovery: 'Repository Discovery',
@@ -1439,6 +1445,9 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     repositoriesSelected: 'dépôts sélectionnés',
     repositorySelected: 'dépôt sélectionné',
     noRepositoriesSelected: 'Aucun dépôt sélectionné',
+    selectAll: 'Tout Sélectionner',
+    selectAllFiltered: 'Sélectionner tous les dépôts filtrés',
+    allFilteredReposSelected: 'Tous les dépôts filtrés sont déjà sélectionnés',
     clearAll: 'Tout Effacer',
     done: 'Terminé',
     repositoryDiscovery: 'Découverte de Dépôt',
@@ -2043,6 +2052,9 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     repositoriesSelected: 'Repositories ausgewählt',
     repositorySelected: 'Repository ausgewählt',
     noRepositoriesSelected: 'Keine Repositories ausgewählt',
+    selectAll: 'Alle Auswählen',
+    selectAllFiltered: 'Alle gefilterten Repositories auswählen',
+    allFilteredReposSelected: 'Alle gefilterten Repositories sind bereits ausgewählt',
     clearAll: 'Alle Löschen',
     done: 'Fertig',
     repositoryDiscovery: 'Repository-Entdeckung',

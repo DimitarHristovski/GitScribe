@@ -71,6 +71,21 @@ export default function MultiRepoSelector({
     return matchesSearch;
   });
 
+  const selectAll = () => {
+    // Select all filtered repositories that aren't already selected
+    const newSelections = [...selectedRepos];
+    filteredRepos.forEach((repo) => {
+      if (!isSelected(repo)) {
+        newSelections.push(repo);
+      }
+    });
+    onSelectionChange(newSelections);
+  };
+
+  const areAllFilteredSelected = () => {
+    return filteredRepos.length > 0 && filteredRepos.every((repo) => isSelected(repo));
+  };
+
   return (
     <div className="card max-w-4xl w-full max-h-[80vh] flex flex-col">
       {/* Header */}
@@ -227,6 +242,14 @@ export default function MultiRepoSelector({
             : t('noRepositoriesSelected')}
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={selectAll}
+            disabled={filteredRepos.length === 0 || areAllFilteredSelected()}
+            className="btn-secondary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={areAllFilteredSelected() ? t('allFilteredReposSelected') : t('selectAllFiltered')}
+          >
+            {t('selectAll')}
+          </button>
           <button
             onClick={() => onSelectionChange([])}
             disabled={selectedRepos.length === 0}

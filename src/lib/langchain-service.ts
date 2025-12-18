@@ -72,8 +72,12 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       
-      // Only intercept OpenAI API calls
-      if (url.includes('api.openai.com/v1/chat/completions')) {
+      // Only intercept OpenAI API calls - be very specific to avoid intercepting other requests
+      // Check for exact OpenAI API endpoint pattern
+      const isOpenAICall = url.includes('api.openai.com/v1/chat/completions') || 
+                          (url.startsWith('/api/openai/chat/completions') && init?.method === 'POST');
+      
+      if (isOpenAICall) {
         try {
           // Parse the request body
           const body = init?.body ? JSON.parse(init.body as string) : {};
@@ -243,6 +247,16 @@ export async function callLangChain(
 
   try {
     const response = await chain.invoke(messages);
+    
+    // Log response length for debugging
+    const responseLength = typeof response === 'string' ? response.length : JSON.stringify(response).length;
+    const responseWordCount = typeof response === 'string' ? response.split(/\s+/).length : 0;
+    console.log(`[LangChain] Response received: ${responseWordCount} words, ${responseLength} characters, maxTokens was: ${defaultMaxTokens}`);
+    
+    if (responseWordCount < 1000 && defaultMaxTokens >= 8000) {
+      console.warn(`[LangChain] WARNING: Response is very short (${responseWordCount} words) despite high maxTokens (${defaultMaxTokens}). Model may have stopped early.`);
+    }
+    
     return response;
   } catch (error: any) {
     console.error('[LangChain] Error in callLangChain:', error);
