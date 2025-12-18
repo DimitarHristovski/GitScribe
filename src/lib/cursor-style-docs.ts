@@ -4,7 +4,7 @@
  */
 
 import { callLangChain } from './langchain-service';
-import { retrieveContext, getSearchResults } from '../rag/index';
+import { retrieveContext } from '../rag/index';
 import { SimpleRepo } from './github-service';
 import { fetchGitHubFile, listAllFiles } from './github-service';
 
@@ -108,7 +108,7 @@ async function generateFileDocumentation(
     3
   ).catch(() => '');
 
-  const language = detectLanguage(filePath, content);
+  const language = detectLanguage(filePath);
   
   const prompt = `You are an expert code documentation generator (like Cursor AI). Generate comprehensive, detailed, inline-style documentation for this code file.
 
@@ -234,9 +234,9 @@ Always include the actual code with extensive documentation comments added. Be t
 }
 
 /**
- * Detect programming language from file path and content
+ * Detect programming language from file path
  */
-function detectLanguage(filePath: string, content: string): string {
+function detectLanguage(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   
   const languageMap: Record<string, string> = {

@@ -78,20 +78,35 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
           // Parse the request body
           const body = init?.body ? JSON.parse(init.body as string) : {};
           
-          // Route through Vite proxy
-          const proxyUrl = '/api/openai/chat/completions';
+          // Route through Vite proxy (only works in dev mode)
+          // In production, we need to call OpenAI directly (CORS must be handled server-side)
+          const isDev = import.meta.env.DEV;
+          const proxyUrl = isDev ? '/api/openai/chat/completions' : 'https://api.openai.com/v1/chat/completions';
           
           if (!apiKey) {
             throw new Error('OpenAI API key is not configured. Please set your API key in Settings.');
           }
           
-          if (import.meta.env.DEV) {
-            console.log('[LangChain] Routing OpenAI API call through Vite proxy:', {
-              model: body.model || model,
-              messagesCount: body.messages?.length || 0,
-              apiKeyPresent: !!apiKey,
-              apiKeyPrefix: apiKey.substring(0, 10) + '...',
-            });
+          console.log('[LangChain] Routing OpenAI API call:', {
+            mode: isDev ? 'dev (proxy)' : 'production (direct)',
+            url: proxyUrl,
+            model: body.model || model,
+            messagesCount: body.messages?.length || 0,
+            apiKeyPresent: !!apiKey,
+            apiKeyPrefix: apiKey.substring(0, 10) + '...',
+          });
+          
+          // Prepare headers based on mode
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          
+          if (isDev) {
+            // In dev, pass API key in custom header for proxy
+            headers['x-api-key'] = apiKey;
+          } else {
+            // In production, use Authorization header directly
+            headers['Authorization'] = `Bearer ${apiKey}`;
           }
           
           const proxyResponse = await originalFetch(proxyUrl, {
@@ -100,6 +115,7 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
               'Content-Type': 'application/json',
               'x-api-key': apiKey, // Pass API key in custom header (from localStorage)
             },
+            headers,
             body: JSON.stringify({
               messages: body.messages || [],
               model: body.model || model,
@@ -109,7 +125,7 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
           });
 
           if (!proxyResponse.ok) {
-            let errorMessage = 'Proxy request failed';
+            let errorMessage = 'Request failed';
             let errorDetails: any = null;
             try {
               errorDetails = await proxyResponse.json();
@@ -118,18 +134,34 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
               const errorText = await proxyResponse.text();
               errorMessage = errorText || errorMessage;
             }
-            console.error('[LangChain] Proxy error:', {
+            
+            console.error('[LangChain] Request error:', {
               status: proxyResponse.status,
               statusText: proxyResponse.statusText,
+              url: proxyUrl,
+              mode: isDev ? 'dev (proxy)' : 'production (direct)',
               error: errorDetails || errorMessage,
               apiKeyPresent: !!apiKey,
               apiKeyPrefix: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
             });
             
+            if (proxyResponse.status === 404) {
+              if (isDev) {
+                throw new Error('Proxy endpoint not found (404). Make sure the Vite dev server is running and the proxy is configured correctly.');
+              } else {
+                throw new Error('OpenAI API endpoint not found (404). This may be a CORS issue. Consider using a backend proxy in production.');
+              }
+            }
+            
             if (proxyResponse.status === 401) {
               throw new Error('OpenAI API key is missing or invalid. Please check your API key in Settings.');
             }
-            throw new Error(errorMessage);
+            
+            if (proxyResponse.status === 403) {
+              throw new Error('Access forbidden. Check your API key permissions and account status.');
+            }
+            
+            throw new Error(`Request failed: ${errorMessage} (${proxyResponse.status})`);
           }
 
           // Return the response in OpenAI format

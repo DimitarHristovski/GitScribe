@@ -26,7 +26,12 @@ export default defineConfig({
       '/api/openai': {
         target: 'https://api.openai.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/openai/, '/v1'),
+        rewrite: (path) => {
+          // Rewrite /api/openai/chat/completions to /v1/chat/completions
+          const rewritten = path.replace(/^\/api\/openai/, '/v1');
+          console.log('[Vite Proxy] Rewriting path:', path, '->', rewritten);
+          return rewritten;
+        },
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             // Forward the API key from the request header

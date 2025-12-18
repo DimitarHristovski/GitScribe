@@ -297,7 +297,11 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
             console.log('Trying main branch instead of master');
             return fetchGitHubFile(owner, repo, path, 'main', token);
           }
-          console.log(`File not found: ${path} (404)`);
+          // Silently return null for 404s - file doesn't exist, which is expected for optional files
+          // Only log in dev mode to reduce console noise
+          if (import.meta.env.DEV) {
+            console.debug(`File not found: ${path} (404) - this is expected for optional files`);
+          }
           return null;
         }
         // If API fails, fall through to raw URL method
@@ -336,7 +340,11 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
           console.log('Trying main branch instead of master');
           return fetchGitHubFile(owner, repo, path, 'main', token);
         }
-        console.log(`File not found: ${path} (404)`);
+        // Silently return null for 404s - file doesn't exist, which is expected for optional files
+        // Only log in dev mode to reduce console noise
+        if (import.meta.env.DEV) {
+          console.debug(`File not found: ${path} (404) - this is expected for optional files`);
+        }
         return null;
       }
       if (response.status === 403) {

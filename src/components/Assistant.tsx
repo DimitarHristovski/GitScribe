@@ -68,7 +68,7 @@ export default function Assistant({
       // Documentation editing mode
     setMessages([{
       role: 'assistant',
-        content: `${t('assistantGreeting')}\n\n${t('assistantCapabilities')}\n- ${t('assistantRewriteSections')}\n- ${t('assistantImproveClarity')}\n- ${t('assistantFixGrammar')}\n- ${t('assistantAddRemoveContent')}\n- ${t('assistantRestructure')}\n- ${t('assistantFormatText')}\n\n${t('assistantTellMeWhatToChange')}`,
+        content: `Hi! I'm your AI assistant. I can help you edit and improve your documentation.`,
       timestamp: Date.now(),
     }]);
     }
@@ -103,17 +103,17 @@ export default function Assistant({
         
         if (isEditRequest) {
           // User explicitly wants to edit - process the edit
-          const response = await processDocumentationEditRequest(userMessage, documentation, model, t);
-          
-          if (response.updatedDocumentation) {
-            onUpdateDocumentation(response.updatedDocumentation);
-          }
-          
-          setMessages((prev) => [...prev, { 
-            role: 'assistant', 
-            content: response.message, 
-            timestamp: Date.now() 
-          }]);
+        const response = await processDocumentationEditRequest(userMessage, documentation, model, t);
+        
+        if (response.updatedDocumentation) {
+          onUpdateDocumentation(response.updatedDocumentation);
+        }
+        
+        setMessages((prev) => [...prev, { 
+          role: 'assistant', 
+          content: response.message, 
+          timestamp: Date.now() 
+        }]);
         } else {
           // User wants to chat about the documentation - have a conversation
           const response = await processConversationalRequest(userMessage, documentation, model, t, messages);
@@ -461,7 +461,13 @@ async function processConversationalRequest(
 
 IMPORTANT: You are having a CONVERSATION. Do NOT edit or modify the documentation unless the user explicitly asks you to edit it. Just discuss, explain, and provide helpful information.
 
-Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.`;
+Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.
+
+HELPFUL HINTS TO SHARE:
+- When appropriate, mention that users can edit the documentation by using commands like: "edit", "change", "update", "add", "remove", "fix", "rewrite", "improve", "enhance"
+- Mention that they can use phrases like: "edit the...", "change the...", "add a section about...", "remove the...", "fix the grammar", "update the..."
+- Let users know that questions and casual chat won't trigger edits - only explicit edit commands will modify the documentation
+- Be helpful and guide users on how to use the assistant effectively`;
 
   const prompt = `The user is having a conversation about their documentation. Here's the conversation so far:
 
@@ -474,7 +480,14 @@ Current documentation (for reference - you can discuss it but don't edit unless 
 ${currentDocumentation.substring(0, 3000)}${currentDocumentation.length > 3000 ? '\n\n[... documentation continues ...]' : ''}
 \`\`\`
 
-Please respond conversationally to the user's message. If they're asking about the documentation, help them understand it. If they're asking for suggestions, provide helpful recommendations. Be friendly and helpful, but remember: you're just chatting, not editing unless they explicitly ask you to edit.`;
+Please respond conversationally to the user's message. If they're asking about the documentation, help them understand it. If they're asking for suggestions, provide helpful recommendations. Be friendly and helpful, but remember: you're just chatting, not editing unless they explicitly ask you to edit.
+
+IMPORTANT: When appropriate (especially in your first response or when the user seems unsure), helpfully mention:
+- "💡 Tip: To edit the documentation, use commands like: 'edit', 'change', 'update', 'add', 'remove', 'fix', 'rewrite', 'improve', or 'enhance'"
+- "You can say things like: 'edit the introduction', 'add a section about X', 'fix the grammar', 'update the API docs', etc."
+- "Questions and casual chat won't modify your documentation - only explicit edit commands will make changes"
+
+Be natural and conversational, but include these helpful hints when it makes sense in the conversation.`;
 
   try {
     const response = await callLangChain(
@@ -568,7 +581,7 @@ Brief explanation of what you changed
     const explanation = explanationMatch ? explanationMatch[1].trim() : 'I\'ve updated your documentation.';
     const updatedDoc = docMatch ? docMatch[1].trim() : currentDocumentation;
 
-    return {
+  return {
       message: explanation,
       updatedDocumentation: updatedDoc,
     };

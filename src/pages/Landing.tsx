@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-import { Sparkles, Flame, Heart, MessageCircle, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, Flame, Heart, MessageCircle, Zap, FileText } from 'lucide-react';
 import Footer from '../components/Footer';
 import { useTranslation } from '../lib/translations';
 import { DocLanguage } from '../types/core';
@@ -260,7 +260,8 @@ export default function Landing({ onGenerate }: LandingProps) {
           <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
             {[
               { icon: Zap, title: t('aiAgentWorkflows'), desc: t('aiAgentWorkflowsDescription'), color: 'orange' },
-              { icon: MessageCircle, title: t('githubIntegrationFeature'), desc: t('githubIntegrationFeatureDescription'), color: 'orange' }
+              { icon: MessageCircle, title: t('githubIntegrationFeature'), desc: t('githubIntegrationFeatureDescription'), color: 'orange' },
+              { icon: FileText, title: t('multipleOutputFormats'), desc: t('outputFormatsDescription'), color: 'orange' }
             ].map((item, index) => (
               <motion.div
                 key={index}

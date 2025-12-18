@@ -751,15 +751,24 @@ export async function generateDocumentationFromGitHub(
       ];
       
       documentation += `### Configuration Files\n\n`;
+      const foundFiles: string[] = [];
       for (const file of keyFiles) {
         try {
           const content = await fetchGitHubFile(owner, repo, file, branch, token || undefined);
           if (content) {
-            documentation += `**${file}** - Found and analyzed\n\n`;
+            foundFiles.push(file);
           }
         } catch (e) {
-          // File not found
+          // File not found - silently continue (404s are expected for optional files)
         }
+      }
+      
+      if (foundFiles.length > 0) {
+        foundFiles.forEach(file => {
+          documentation += `**${file}** - Found and analyzed\n\n`;
+        });
+      } else {
+        documentation += `No configuration files found in the repository root.\n\n`;
       }
       
     } catch (error: any) {

@@ -332,7 +332,7 @@ ${directoryTree ? `\nComplete Directory Structure:\n\`\`\`\n${directoryTree}\`\`
   
   switch (sectionType) {
     case 'README':
-      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" following the EXACT structure and style of professional open-source project documentation (like the GitScribe DOCUMENTATION.md example - 400-500+ lines, comprehensive and detailed).
+      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" following the EXACT structure and style of professional open-source project documentation (like the GitScribe DOCUMENTATION.md example - 600-700+ lines, 4500-5000+ words, comprehensive and detailed).
 ${languageInstruction}
 
 ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
@@ -347,7 +347,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE README content. DO N
 - Generate fresh, detailed documentation based on the actual code structure
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
-- Follow the EXACT structure and style of professional documentation (like GitScribe's DOCUMENTATION.md - comprehensive, detailed, 400-500+ lines)
+- Follow the EXACT structure and style of professional documentation (like GitScribe's DOCUMENTATION.md - comprehensive, detailed, 600-700+ lines, 4500-5000+ words)
 
 Create an EXTENSIVE, COMPREHENSIVE README that MUST follow this EXACT structure (be thorough and detailed, match the style of DOCUMENTATION.md):
 
@@ -361,27 +361,30 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
 ## Project Title and Description
 
 ### Overview
-- Write 2-3 comprehensive paragraphs explaining what the project does
-- Describe the technology stack and key technologies used
-- Explain the main purpose and what problems it solves
-- Be detailed and thorough (150-200 words minimum)
+- Write EXACTLY 3 comprehensive paragraphs explaining what the project does
+- First paragraph: Describe the project, its purpose, and key technologies (100-150 words)
+- Second paragraph: Explain the problem it solves and how it addresses pain points (100-150 words)
+- Third paragraph: Describe the architecture, approach, and key capabilities (100-150 words)
+- Be detailed and thorough (300-450 words total minimum)
 
 ### Purpose and Goals
-- Explain the primary purpose of the project
-- Describe the goals and objectives
-- Explain why the project exists and what value it provides
-- Be detailed and thorough (100-150 words minimum)
+- Write EXACTLY 3 comprehensive paragraphs
+- First paragraph: Explain the primary purpose and what problems it solves (100-150 words)
+- Second paragraph: Describe key goals, democratization, and accessibility (100-150 words)
+- Third paragraph: Explain additional goals like multi-language support and reducing cognitive load (100-150 words)
+- Be detailed and thorough (300-450 words total minimum)
 
 ### Target Audience
-- Describe who would use this project
-- Explain the use cases and scenarios
-- Describe the benefits for different user types
-- Be detailed and thorough (100-150 words minimum)
+- Write EXACTLY 3 comprehensive paragraphs
+- First paragraph: Describe primary audience (developers, PMs, technical writers) and main benefits (100-150 words)
+- Second paragraph: Explain benefits for individual developers, open-source maintainers, and enterprise teams (100-150 words)
+- Third paragraph: Describe benefits for technical writers, project managers, and organizations onboarding (100-150 words)
+- Be detailed and thorough (300-450 words total minimum)
 
 ## Features
 
 ### Core Features
-- Create a numbered list (1-12 items) of core features
+- Create a numbered list with AT LEAST 12-14 core features
 - Each feature should have:
   - **Bold feature name** followed by a colon
   - 1-2 detailed sentences explaining what it does and why it's useful
@@ -389,11 +392,13 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
   1. **Feature Name**: Detailed description explaining what it does and its benefits.
    
   2. **Another Feature**: Another detailed description...
+- Include features like: Repository Documentation, Multi-Repository Support, AI Agent Workflow, Multiple Formats, Documentation Sections, Multi-Language Support, AI Assistant, Quality Analysis, Refactor Proposals, Badge Generation, PDF Export, GitHub Integration, RAG-Enhanced Context, Customizable Styles, etc.
 
 ### Advanced Features
-- Create a numbered list (1-8 items) of advanced features
+- Create a numbered list with AT LEAST 10-12 advanced features
 - Same format as Core Features
 - Focus on more sophisticated capabilities
+- Include features like: GitHub API Integration, Token Support, Real-time Statistics, Tabbed Interface, Collapsible UI, Cost Estimation, Auto-Update, Progress Tracking, Model Selection, Translation Support, Vector Store, Directory Tree Generation, etc.
 
 ## Installation/Setup
 
@@ -419,8 +424,9 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
 ### Troubleshooting
 - Create a bullet list of common issues
 - Each item should have:
-  - **Bold issue name**: Detailed solution
-- Include at least 3-5 troubleshooting items
+  - **Bold issue name**: Detailed solution with 2-3 sentences explaining the problem and how to fix it
+- Include AT LEAST 5-7 troubleshooting items with comprehensive solutions
+- Cover: API Key errors, Rate Limiting, Private Repository Access, CORS Issues, Build Failures, Timeout Issues, Memory Issues, etc.
 
 ## Usage
 
@@ -456,7 +462,13 @@ For each major function/class, document with:
   \`\`\`
 - Include 2-3 usage examples (basic, advanced, edge cases)
 
-Document at least 3-5 major functions/classes from the codebase.
+Document AT LEAST 5-7 major functions/classes from the codebase. For each function, include:
+- Complete function signature with full TypeScript types
+- Detailed parameter documentation table or list
+- Comprehensive return value explanation
+- Multiple usage examples (basic, advanced, edge cases, error handling)
+- Performance considerations if applicable
+- Related functions or dependencies
 
 ## Configuration
 
@@ -474,14 +486,21 @@ Document at least 3-5 major functions/classes from the codebase.
 ## Architecture Overview
 
 ### System Design
-- 2-3 paragraphs explaining high-level architecture
-- Describe design decisions and patterns
-- Reference actual components from the codebase
+- Write EXACTLY 3 comprehensive paragraphs explaining high-level architecture
+- First paragraph: Describe the overall architecture, client-side design, and API integrations (100-150 words)
+- Second paragraph: Explain data flow patterns, state management, and modern technologies used (100-150 words)
+- Third paragraph: Describe agent-based system, LangChain integration, and vector store implementation (100-150 words)
+- Reference actual components, services, and patterns from the codebase
 
 ### Component Relationships
-- Describe how components interact
-- Explain data flow and dependencies
-- Reference actual component names from the codebase
+- Create a detailed bullet list describing each major component
+- For each component, explain:
+  - Its role and responsibility
+  - How it interacts with other components
+  - Data flow and dependencies
+  - Key methods or functions it provides
+- Include components like: AgentWorkflow, Assistant, MultiRepoSelector, DocumentationEditor, AgentManager, DocsWriter Agent, RepoAnalysis Agent, DocsPlanner Agent, etc.
+- Reference actual component names, file paths, and class/function names from the codebase
 
 ### Project Structure
 - Use the complete directory structure provided in the context above
@@ -524,26 +543,39 @@ Document at least 3-5 major functions/classes from the codebase.
 
 ### FAQ
 - **Q1: Question?**
-  A1: Detailed answer (2-3 sentences minimum)
-- Include 3-5 FAQ items
+  A1: Detailed answer with 3-5 sentences explaining the solution comprehensively
+- Include AT LEAST 5-7 FAQ items covering:
+  - Setup and configuration questions
+  - Usage and workflow questions
+  - Technical questions about features
+  - Troubleshooting questions
+  - Best practices questions
+  - Integration questions
+  - Cost and performance questions
 
 ### Troubleshooting
-- Bullet list with:
-  - **Issue Name**: Detailed solution (2-3 sentences)
+- Bullet list with AT LEAST 5-7 troubleshooting items
+- Each item should have:
+  - **Issue Name**: Detailed solution with 2-3 sentences explaining both the problem and the fix
+- Cover common issues like: API errors, authentication problems, rate limiting, build issues, performance problems, etc.
 
 ### Known Issues
-- Bullet list of current limitations
-- Each with brief description
+- Bullet list with AT LEAST 5-6 known issues
+- Each issue should have:
+  - **Issue Name**: Detailed description (2-3 sentences) explaining the limitation and any workarounds
+- Include issues like: PDF export limitations, workflow timeouts, CORS issues, token limits, translation quality, API generation accuracy, etc.
 
 ### Roadmap
-- Bullet list of planned features
-- Each with brief description
+- Bullet list with AT LEAST 7-8 planned features
+- Each feature should have:
+  - **Feature Name**: Detailed description (2-3 sentences) explaining what it will do and why it's valuable
+- Include planned features like: Additional formats, custom workflows, more Git providers, webhook support, collaboration features, advanced customization, performance optimizations, analytics, etc.
 
-CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4000-6000 words (approximately 400-500+ lines like DOCUMENTATION.md). This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4500-5500 words (approximately 600-700+ lines like DOCUMENTATION.md). This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
 
 Length Enforcement:
-- Minimum: 4000 words / 400+ lines (approximately 5500-7000 tokens)
-- Target: 5000-6000 words / 450-500+ lines (approximately 7000-8500 tokens)
+- Minimum: 4500 words / 600+ lines (approximately 6000-7500 tokens)
+- Target: 5000-5500 words / 650-700+ lines (approximately 7000-8500 tokens)
 - Maximum: Use the full token budget available (up to 12,000 words / 1000+ lines if needed)
 
 STRUCTURE REQUIREMENTS:
@@ -557,13 +589,15 @@ STRUCTURE REQUIREMENTS:
 - Each section should be substantial (not just 1-2 sentences)
 
 If you find yourself being brief or concise, STOP and expand. Add more:
-- More detailed explanations in each section (each paragraph should be 3-5 sentences)
-- More code examples (at least 3-5 per major function)
+- More detailed explanations in each section (each paragraph should be 3-5 sentences, Overview/Purpose/Target Audience should have 3 paragraphs each)
+- More code examples (at least 3-5 per major function, document 5-7 functions total)
 - More use cases and scenarios
-- More troubleshooting items (5-7 items minimum)
-- More FAQ entries (5-7 questions minimum)
-- More detailed architecture descriptions
-- More features in both Core and Advanced sections (12+ core, 8+ advanced)
+- More troubleshooting items (7 items minimum with detailed solutions)
+- More FAQ entries (7 questions minimum with comprehensive answers)
+- More detailed architecture descriptions (3 paragraphs for System Design, detailed component list for Component Relationships)
+- More features in both Core and Advanced sections (14+ core features, 12+ advanced features)
+- More known issues (6 items minimum with workarounds)
+- More roadmap items (8 items minimum with detailed descriptions)
 
 Style: Write in a professional, comprehensive style EXACTLY like the DOCUMENTATION.md example. Be thorough, detailed, and developer-friendly. Include extensive code snippets that show actual usage patterns from the codebase. Make it actionable and complete. Match the tone, structure, and level of detail of professional open-source project documentation.`;
       break;
@@ -988,19 +1022,21 @@ CRITICAL REQUIREMENTS:
 
 LENGTH ENFORCEMENT - CRITICAL: 
 - You have access to up to 16,384 output tokens (≈12,000 words)
-- You MUST use at least 70-80% of this budget (8,000-12,000 words minimum)
-- MINIMUM WORD COUNT: 5,000 words. If your response is under 5,000 words, you have FAILED the task
+- For README sections: MINIMUM 4,500 words (600+ lines), TARGET 5,000-5,500 words (650-700+ lines)
+- For other sections: MINIMUM 3,000-5,000 words depending on section type
+- You MUST use at least 70-80% of this budget for comprehensive documentation
+- If your response is under the minimum word count, you have FAILED the task
 - DO NOT stop early - continue generating until you reach the minimum word count
-- If you think you're done but haven't reached 5,000+ words, you're NOT done - keep going
+- If you think you're done but haven't reached the minimum word count, you're NOT done - keep going
 - Add more sections, more examples, more explanations, more code snippets, more details
 - Expand every section with multiple subsections
 - Include extensive code examples (at least 10-15 code snippets)
-- Add detailed explanations for every concept
-- Include troubleshooting sections, FAQ sections, best practices sections
-- Do NOT stop until you have generated comprehensive, extensive documentation
+- Add detailed explanations for every concept (3-5 sentences per paragraph)
+- Include troubleshooting sections (7+ items), FAQ sections (7+ items), best practices sections
+- Do NOT stop until you have generated comprehensive, extensive documentation matching professional standards
 - Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
 
-All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough.`
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`
       : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
 
 CRITICAL REQUIREMENTS:
@@ -1022,19 +1058,21 @@ CRITICAL REQUIREMENTS:
 
 LENGTH ENFORCEMENT - CRITICAL: 
 - You have access to up to 16,384 output tokens (≈12,000 words)
-- You MUST use at least 70-80% of this budget (8,000-12,000 words minimum)
-- MINIMUM WORD COUNT: 5,000 words. If your response is under 5,000 words, you have FAILED the task
+- For README sections: MINIMUM 4,500 words (600+ lines), TARGET 5,000-5,500 words (650-700+ lines)
+- For other sections: MINIMUM 3,000-5,000 words depending on section type
+- You MUST use at least 70-80% of this budget for comprehensive documentation
+- If your response is under the minimum word count, you have FAILED the task
 - DO NOT stop early - continue generating until you reach the minimum word count
-- If you think you're done but haven't reached 5,000+ words, you're NOT done - keep going
+- If you think you're done but haven't reached the minimum word count, you're NOT done - keep going
 - Add more sections, more examples, more explanations, more code snippets, more details
 - Expand every section with multiple subsections
 - Include extensive code examples (at least 10-15 code snippets)
-- Add detailed explanations for every concept
-- Include troubleshooting sections, FAQ sections, best practices sections
-- Do NOT stop until you have generated comprehensive, extensive documentation
+- Add detailed explanations for every concept (3-5 sentences per paragraph)
+- Include troubleshooting sections (7+ items), FAQ sections (7+ items), best practices sections
+- Do NOT stop until you have generated comprehensive, extensive documentation matching professional standards
 - Remember: SHORT = FAILURE. LONG = SUCCESS. Be verbose, be thorough, be comprehensive.
 
-Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough.`;
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`;
     
     // Get max tokens based on model
     // GPT-4o and GPT-4o-mini both support up to 16,384 output tokens
