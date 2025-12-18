@@ -68,7 +68,7 @@ export default function Assistant({
       // Documentation editing mode
     setMessages([{
       role: 'assistant',
-        content: `${t('assistantGreeting')}\n\n${t('assistantCapabilities')}\n- ${t('assistantRewriteSections')}\n- ${t('assistantImproveClarity')}\n- ${t('assistantFixGrammar')}\n- ${t('assistantAddRemoveContent')}\n- ${t('assistantRestructure')}\n- ${t('assistantFormatText')}\n\n${t('assistantTellMeWhatToChange')}`,
+        content: `Hi! I'm your AI assistant. I can help you edit and improve your documentation.`,
       timestamp: Date.now(),
     }]);
     }
@@ -98,6 +98,11 @@ export default function Assistant({
     try {
       // Check if we're in documentation editing mode
       if (documentation && onUpdateDocumentation) {
+        // Determine if this is an edit request or just a conversation
+        const isEditRequest = isDocumentationEditRequest(userMessage);
+        
+        if (isEditRequest) {
+          // User explicitly wants to edit - process the edit
         const response = await processDocumentationEditRequest(userMessage, documentation, model, t);
         
         if (response.updatedDocumentation) {
@@ -109,6 +114,18 @@ export default function Assistant({
           content: response.message, 
           timestamp: Date.now() 
         }]);
+        } else {
+          // User wants to chat about the documentation - have a conversation
+          const response = await processConversationalRequest(userMessage, documentation, model, t, messages);
+          
+          setMessages((prev) => [...prev, { 
+            role: 'assistant', 
+            content: response, 
+            timestamp: Date.now() 
+          }]);
+        }
+        setLoading(false);
+        return;
         setLoading(false);
         return;
       }
@@ -150,19 +167,19 @@ export default function Assistant({
 
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 overflow-hidden">
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-white to-orange-50/30 overflow-hidden">
       {/* Header - Modern Glassmorphism */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-white/50 p-4 flex items-center justify-between flex-shrink-0 shadow-sm">
+      <div className="glass p-5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl blur opacity-30"></div>
-            <div className="relative bg-gradient-to-r from-orange-500 to-red-600 p-2 rounded-xl">
+            <div className="relative bg-gradient-to-r from-orange-500 to-red-600 p-2.5 rounded-xl shadow-lg">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-base">{t('aiAssistant')}</h3>
-            <p className="text-xs text-slate-500">{t('documentationHelper')}</p>
+            <h3 className="font-black text-slate-800 text-lg">{t('aiAssistant')}</h3>
+            <p className="text-xs text-slate-500 font-medium">{t('documentationHelper')}</p>
           </div>
         </div>
         {messages.length > 1 && (
@@ -175,13 +192,13 @@ export default function Assistant({
             className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
             title={t('assistantClearConversation')}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
       {/* Messages Area - Enhanced Design */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 overscroll-contain scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto p-5 lg:p-6 space-y-5 min-h-0 overscroll-contain scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-sm">
@@ -207,10 +224,10 @@ export default function Assistant({
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-lg ${
+              className={`max-w-[85%] rounded-2xl px-5 py-4 shadow-xl ${
                 msg.role === 'user'
                   ? 'bg-gradient-to-br from-orange-600 to-red-600 text-white'
-                  : 'bg-white/90 backdrop-blur-sm border border-slate-200/50 text-slate-800'
+                  : 'glass text-slate-800'
               }`}
             >
               {msg.role === 'assistant' && (
@@ -309,8 +326,8 @@ export default function Assistant({
       </div>
 
       {/* Input Area - Modern Design */}
-      <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-white/50 flex-shrink-0 shadow-lg">
-        <div className="flex gap-2">
+      <div className="glass p-5 flex-shrink-0">
+        <div className="flex gap-3">
           <div className="flex-1 relative">
             <input
               type="text"
@@ -323,14 +340,14 @@ export default function Assistant({
                 }
               }}
               placeholder={loading ? t('assistantPlaceholderLoading') : t('assistantPlaceholderReady')}
-              className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-slate-50 disabled:cursor-not-allowed transition-all text-sm"
+              className="input-modern"
               disabled={loading}
             />
           </div>
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            className="px-5 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 font-medium shadow-lg"
+            className="btn-primary px-6 py-3 flex items-center gap-2"
             title={input.trim() ? t('assistantTitleSend') : t('assistantTitleType')}
           >
             {loading ? (
@@ -359,6 +376,136 @@ export default function Assistant({
       </div>
     </div>
   );
+}
+
+/**
+ * Determine if a message is an explicit edit request or just conversational
+ */
+function isDocumentationEditRequest(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  
+  // Explicit edit commands
+  const editKeywords = [
+    'edit', 'change', 'update', 'modify', 'rewrite', 'fix', 'correct',
+    'add', 'remove', 'delete', 'insert', 'replace', 'improve', 'enhance',
+    'make it', 'make the', 'change the', 'update the', 'edit the',
+    'should be', 'needs to be', 'must be', 'please add', 'please remove',
+    'can you add', 'can you remove', 'can you change', 'can you edit'
+  ];
+  
+  // Check if message contains edit keywords
+  const hasEditKeyword = editKeywords.some(keyword => lowerMessage.includes(keyword));
+  
+  // Check for imperative patterns (commands)
+  const isCommand = lowerMessage.startsWith('edit') || 
+                    lowerMessage.startsWith('change') || 
+                    lowerMessage.startsWith('update') ||
+                    lowerMessage.startsWith('add') ||
+                    lowerMessage.startsWith('remove') ||
+                    lowerMessage.startsWith('fix') ||
+                    lowerMessage.startsWith('rewrite');
+  
+  // If it's a question, it's conversational
+  const isQuestion = lowerMessage.trim().endsWith('?') || 
+                     lowerMessage.includes('what') ||
+                     lowerMessage.includes('how') ||
+                     lowerMessage.includes('why') ||
+                     lowerMessage.includes('when') ||
+                     lowerMessage.includes('where') ||
+                     lowerMessage.includes('can you explain') ||
+                     lowerMessage.includes('tell me') ||
+                     lowerMessage.includes('describe');
+  
+  // If it's a greeting or casual chat, it's conversational
+  const isCasual = lowerMessage.includes('hello') ||
+                   lowerMessage.includes('hi') ||
+                   lowerMessage.includes('thanks') ||
+                   lowerMessage.includes('thank you') ||
+                   lowerMessage.includes('ok') ||
+                   lowerMessage.includes('okay') ||
+                   lowerMessage.length < 10; // Very short messages are likely conversational
+  
+  // If it's clearly a question or casual, it's conversational
+  if (isQuestion || isCasual) {
+    return false;
+  }
+  
+  // If it has edit keywords or is a command, it's an edit request
+  return hasEditKeyword || isCommand;
+}
+
+/**
+ * Process conversational requests (chatting about documentation)
+ */
+async function processConversationalRequest(
+  request: string,
+  currentDocumentation: string,
+  model: string = 'gpt-4o-mini',
+  t?: (key: TranslationKey) => string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: number }> = []
+): Promise<string> {
+  const { callLangChain } = await import('../lib/langchain-service');
+  
+  // Build conversation context
+  const conversationContext = conversationHistory
+    .slice(-6) // Last 6 messages for context
+    .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+    .join('\n\n');
+  
+  const systemPrompt = `You are a helpful AI assistant that helps users understand and discuss their documentation. You can:
+- Answer questions about the documentation
+- Explain sections or concepts
+- Provide suggestions and recommendations
+- Discuss the documentation content
+- Help users understand what's in their documentation
+
+IMPORTANT: You are having a CONVERSATION. Do NOT edit or modify the documentation unless the user explicitly asks you to edit it. Just discuss, explain, and provide helpful information.
+
+Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.
+
+HELPFUL HINTS TO SHARE:
+- When appropriate, mention that users can edit the documentation by using commands like: "edit", "change", "update", "add", "remove", "fix", "rewrite", "improve", "enhance"
+- Mention that they can use phrases like: "edit the...", "change the...", "add a section about...", "remove the...", "fix the grammar", "update the..."
+- Let users know that questions and casual chat won't trigger edits - only explicit edit commands will modify the documentation
+- Be helpful and guide users on how to use the assistant effectively`;
+
+  const prompt = `The user is having a conversation about their documentation. Here's the conversation so far:
+
+${conversationContext ? `Previous conversation:\n${conversationContext}\n\n` : ''}
+
+User's current message: "${request}"
+
+Current documentation (for reference - you can discuss it but don't edit unless explicitly asked):
+\`\`\`
+${currentDocumentation.substring(0, 3000)}${currentDocumentation.length > 3000 ? '\n\n[... documentation continues ...]' : ''}
+\`\`\`
+
+Please respond conversationally to the user's message. If they're asking about the documentation, help them understand it. If they're asking for suggestions, provide helpful recommendations. Be friendly and helpful, but remember: you're just chatting, not editing unless they explicitly ask you to edit.
+
+IMPORTANT: When appropriate (especially in your first response or when the user seems unsure), helpfully mention:
+- "💡 Tip: To edit the documentation, use commands like: 'edit', 'change', 'update', 'add', 'remove', 'fix', 'rewrite', 'improve', or 'enhance'"
+- "You can say things like: 'edit the introduction', 'add a section about X', 'fix the grammar', 'update the API docs', etc."
+- "Questions and casual chat won't modify your documentation - only explicit edit commands will make changes"
+
+Be natural and conversational, but include these helpful hints when it makes sense in the conversation.`;
+
+  try {
+    const response = await callLangChain(
+      prompt, 
+      systemPrompt, 
+      model, 
+      0.7,
+      undefined, // No repoName - we're not using RAG
+      false, // Don't use RAG for conversation
+      2048 // Reasonable max tokens for conversation
+    );
+    
+    return response.trim();
+  } catch (error: any) {
+    console.error('[Assistant] Error processing conversational request:', error);
+    const errorMsg = t ? `${t('assistantErrorUnknown')}: ${error.message}` : `Error: ${error.message}`;
+    return errorMsg;
+  }
 }
 
 /**
@@ -415,7 +562,17 @@ Brief explanation of what you changed
 </documentation>`;
 
   try {
-    const response = await callLangChain(prompt, systemPrompt, model, 0.7);
+    // Call LangChain without RAG (we're editing documentation, not analyzing code)
+    // Use reasonable maxTokens for documentation editing (4096 should be enough)
+    const response = await callLangChain(
+      prompt, 
+      systemPrompt, 
+      model, 
+      0.7,
+      undefined, // No repoName - we're not using RAG
+      false, // Don't use RAG for documentation editing
+      4096 // Reasonable max tokens for editing
+    );
     
     // Extract explanation and documentation
     const explanationMatch = response.match(/<explanation>([\s\S]*?)<\/explanation>/);
@@ -429,6 +586,7 @@ Brief explanation of what you changed
       updatedDocumentation: updatedDoc,
     };
   } catch (error: any) {
+    console.error('[Assistant] Error processing documentation edit:', error);
     const errorMsg = t ? `${t('errorEditingDocumentation')}: ${error.message}` : `Error editing documentation: ${error.message}`;
     return {
       message: errorMsg,

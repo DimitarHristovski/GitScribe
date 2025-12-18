@@ -20,20 +20,13 @@ export async function docsPlannerAgent(state: AgentState): Promise<Partial<Agent
   }
 
   const plans = new Map<string, DocumentationPlan>();
-  let current = 0;
   const total = state.repoAnalyses.size;
+  let completed = 0;
 
-  for (const [repoFullName, analysis] of state.repoAnalyses.entries()) {
+  // Process all repositories in parallel
+  const planningPromises = Array.from(state.repoAnalyses.entries()).map(async ([repoFullName, analysis]) => {
     try {
-      current++;
-      updates.progress = {
-        current,
-        total,
-        currentRepo: repoFullName,
-        currentAgent: 'DocsPlanner',
-      };
-
-      console.log(`[DocsPlanner] Planning docs for ${repoFullName} (${current}/${total})`);
+      console.log(`[DocsPlanner] Starting planning for ${repoFullName}`);
 
       // Generate documentation plan using AI
       const planningPrompt = `Create a documentation plan for this repository:
@@ -115,12 +108,43 @@ Return JSON format:
       // Sort sections by priority
       plan.sections.sort((a, b) => b.priority - a.priority);
 
-      plans.set(repoFullName, plan);
+      completed++;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repoFullName,
+        currentAgent: 'DocsPlanner',
+      };
+      console.log(`[DocsPlanner] Completed planning for ${repoFullName} (${completed}/${total})`);
+
+      return { repoFullName, plan, error: null };
     } catch (error: any) {
+      completed++;
       console.error(`[DocsPlanner] Error planning for ${repoFullName}:`, error);
-      const errorKey = `planning_${repoFullName}`;
+      updates.progress = {
+        current: completed,
+        total,
+        currentRepo: repoFullName,
+        currentAgent: 'DocsPlanner',
+      };
+      return { 
+        repoFullName, 
+        plan: null, 
+        error: { key: `planning_${repoFullName}`, message: error.message || 'Planning failed' }
+      };
+    }
+  });
+
+  // Wait for all planning to complete
+  const results = await Promise.all(planningPromises);
+
+  // Process results
+  for (const result of results) {
+    if (result.plan) {
+      plans.set(result.repoFullName, result.plan);
+    } else if (result.error) {
       if (!updates.errors) updates.errors = new Map();
-      updates.errors.set(errorKey, error.message || 'Planning failed');
+      updates.errors.set(result.error.key, result.error.message);
     }
   }
 

@@ -15,7 +15,7 @@ export interface AgentState {
   selectedOutputFormats?: DocOutputFormat[];
   selectedSectionTypes?: DocSectionType[];
   selectedLanguage?: DocLanguage;
-  autoCommit?: boolean; // Whether to automatically commit documentation (for auto-update)
+  selectedModel?: string; // AI model to use for generation
   
   // Discovery
   discoveredRepos?: SimpleRepo[];
@@ -29,14 +29,6 @@ export interface AgentState {
   // Writing
   generatedDocs?: Map<string, string>; // Backward compatibility - first markdown section
   generatedDocsFull?: Map<string, GeneratedDocs>; // Full format-specific documentation
-  
-  // Quality & Refactor
-  qualityReports?: Map<string, any>; // RepoQualityReport
-  refactorProposals?: Map<string, any>; // FolderRefactorProposal
-  badges?: Map<string, string>; // Badge markdown strings
-  
-  // GitOps
-  commits?: Map<string, { path: string; sha: string }[]>; // Committed files per repository
   
   // Status
   currentStep?: AgentStep;
@@ -58,11 +50,8 @@ export interface AgentState {
 export enum AgentStep {
   DISCOVERY = 'discovery',
   ANALYSIS = 'analysis',
-  QUALITY = 'quality',
-  REFACTOR = 'refactor',
   PLANNING = 'planning',
   WRITING = 'writing',
-  GITOPS = 'gitops',
   COMPLETE = 'complete',
 }
 

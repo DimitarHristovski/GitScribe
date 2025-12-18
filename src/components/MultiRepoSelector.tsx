@@ -71,15 +71,32 @@ export default function MultiRepoSelector({
     return matchesSearch;
   });
 
+  const selectAll = () => {
+    // Select all filtered repositories that aren't already selected
+    const newSelections = [...selectedRepos];
+    filteredRepos.forEach((repo) => {
+      if (!isSelected(repo)) {
+        newSelections.push(repo);
+      }
+    });
+    onSelectionChange(newSelections);
+  };
+
+  const areAllFilteredSelected = () => {
+    return filteredRepos.length > 0 && filteredRepos.every((repo) => isSelected(repo));
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6 max-w-4xl w-full max-h-[80vh] flex flex-col">
+    <div className="card max-w-4xl w-full max-h-[80vh] flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Github className="w-5 h-5 text-gray-700" />
-          <h2 className="text-xl font-bold text-gray-900">{t('selectRepositories')}</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg">
+            <Github className="w-5 h-5 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">{t('selectRepositories')}</h2>
           {selectedRepos.length > 0 && (
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+            <span className="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 rounded-full text-sm font-bold shadow-sm">
               {selectedRepos.length} {t('selected')}
             </span>
           )}
@@ -87,7 +104,7 @@ export default function MultiRepoSelector({
         {onClose && (
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             title={t('close')}
           >
             <X className="w-5 h-5" />
@@ -96,30 +113,30 @@ export default function MultiRepoSelector({
       </div>
 
       {/* Filters */}
-      <div className="mb-4 space-y-3">
+      <div className="mb-6 space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             placeholder={t('searchRepositories')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="input-modern pl-12"
           />
         </div>
 
         {/* Visibility Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">{t('visibility')}</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-semibold text-gray-700">{t('visibility')}</span>
           <div className="flex gap-2">
             {(['all', 'public', 'private'] as const).map((vis) => (
               <button
                 key={vis}
                 onClick={() => setFilterVisibility(vis)}
-                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
                   filterVisibility === vis
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -130,7 +147,7 @@ export default function MultiRepoSelector({
           <button
             onClick={loadRepos}
             disabled={loading}
-            className="ml-auto px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="ml-auto px-4 py-2 text-sm font-semibold bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('refresh')}
           </button>
@@ -139,9 +156,9 @@ export default function MultiRepoSelector({
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-          <AlertCircle className="w-4 h-4" />
-          <span className="text-sm">{error}</span>
+        <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3 text-red-700 shadow-sm">
+          <AlertCircle className="w-5 h-5" />
+          <span className="text-sm font-medium">{error}</span>
         </div>
       )}
 
@@ -155,10 +172,10 @@ export default function MultiRepoSelector({
 
       {/* Repository List */}
       {!loading && !error && (
-        <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
+        <div className="flex-1 overflow-y-auto border-2 border-gray-200 rounded-xl scrollbar-thin">
           {filteredRepos.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              {searchQuery ? t('noRepositoriesMatch') : t('noRepositoriesFound')}
+            <div className="p-12 text-center text-gray-500">
+              <p className="text-lg font-medium">{searchQuery ? t('noRepositoriesMatch') : t('noRepositoriesFound')}</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -168,42 +185,42 @@ export default function MultiRepoSelector({
                   <div
                     key={repo.id}
                     onClick={() => toggleRepo(repo)}
-                    className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
-                      selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                    className={`p-5 cursor-pointer transition-all hover:bg-gradient-to-r hover:from-orange-50/50 hover:to-red-50/50 ${
+                      selected ? 'bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-l-orange-500' : ''
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
                       <div
-                        className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                        className={`mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                           selected
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'border-gray-300'
+                            ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-500 shadow-md'
+                            : 'border-gray-300 hover:border-orange-300'
                         }`}
                       >
-                        {selected && <Check className="w-3 h-3 text-white" />}
+                        {selected && <Check className="w-4 h-4 text-white" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{repo.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-gray-900">{repo.name}</h3>
                           {repo.private && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                            <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">
                               {t('private')}
                             </span>
                           )}
                           {repo.language && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                            <span className="px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-lg">
                               {repo.language}
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{repo.fullName}</p>
+                        <p className="text-sm text-gray-600 mt-1 font-medium">{repo.fullName}</p>
                         {repo.description && (
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                          <p className="text-sm text-gray-500 mt-2 line-clamp-2 leading-relaxed">
                             {repo.description}
                           </p>
                         )}
                         {repo.lastPushedAt && (
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-gray-400 mt-2">
                             {t('lastPushed')} {new Date(repo.lastPushedAt).toLocaleDateString()}
                           </p>
                         )}
@@ -218,24 +235,32 @@ export default function MultiRepoSelector({
       )}
 
       {/* Footer Actions */}
-      <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-200">
-        <div className="text-sm text-gray-600">
+      <div className="mt-6 flex items-center justify-between pt-6 border-t border-gray-200">
+        <div className="text-sm font-semibold text-gray-700">
           {selectedRepos.length > 0
             ? `${selectedRepos.length} ${selectedRepos.length !== 1 ? t('repositories') : t('repository')} ${t('selected')}`
             : t('noRepositoriesSelected')}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
+          <button
+            onClick={selectAll}
+            disabled={filteredRepos.length === 0 || areAllFilteredSelected()}
+            className="btn-secondary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={areAllFilteredSelected() ? t('allFilteredReposSelected') : t('selectAllFiltered')}
+          >
+            {t('selectAll')}
+          </button>
           <button
             onClick={() => onSelectionChange([])}
             disabled={selectedRepos.length === 0}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-secondary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('clearAll')}
           </button>
           {onClose && (
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="btn-primary px-6 py-2 text-sm"
             >
               {t('done')}
             </button>

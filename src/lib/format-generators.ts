@@ -45,8 +45,20 @@ export async function generateFormatDocumentation(
  */
 function generateMarkdownDocumentation(sectionType: DocSectionType, baseMarkdown: string): string {
   // For markdown, return the base markdown with section-specific headers
+  // baseMarkdown here is actually the section-specific content from DocsWriter
   const sectionHeader = getSectionHeader(sectionType);
-  return `${sectionHeader}\n\n${baseMarkdown}`;
+  const result = `${sectionHeader}\n\n${baseMarkdown}`;
+  
+  // Log for debugging
+  const wordCount = result.split(/\s+/).length;
+  const charCount = result.length;
+  console.log(`[FormatGenerator] Markdown for ${sectionType}: ${wordCount} words, ${charCount} characters`);
+  
+  if (wordCount < 1000) {
+    console.warn(`[FormatGenerator] WARNING: Markdown content is very short (${wordCount} words). Expected 4000-6000+ words.`);
+  }
+  
+  return result;
 }
 
 /**
@@ -209,10 +221,17 @@ ${content.trim()}
   );
   
   // Add interactive tabs for different sections
+  // Don't truncate content - show full content in all tabs
   if (sectionType === 'API' || sectionType === 'COMPONENTS') {
+    // Split content intelligently: first 40% for overview, rest for reference
+    const lines = mdxContent.split('\n');
+    const overviewLines = Math.floor(lines.length * 0.4);
+    const overviewContent = lines.slice(0, overviewLines).join('\n');
+    const referenceContent = mdxContent; // Full content for reference
+    
     mdxContent = `\n<Tabs>
   <TabItem label="Overview" value="overview">
-${mdxContent.split('\n').slice(0, 20).join('\n')}
+${overviewContent}
   </TabItem>
   <TabItem label="Examples" value="examples">
     <Card>
@@ -221,21 +240,24 @@ ${mdxContent.split('\n').slice(0, 20).join('\n')}
     </Card>
   </TabItem>
   <TabItem label="Reference" value="reference">
-${mdxContent}
+${referenceContent}
   </TabItem>
 </Tabs>\n\n`;
   }
   
   // Wrap in Grid layout for better presentation
   if (sectionType === 'COMPONENTS') {
+    // Split content intelligently - use first 30% for overview, rest for details
+    // Don't hard-limit to 500 chars - use percentage to preserve full content
+    const splitPoint = Math.floor(mdxContent.length * 0.3);
     mdxContent = `<Grid cols={2}>
   <Card>
     <h3>Component Overview</h3>
-    ${mdxContent.substring(0, 500)}
+    ${mdxContent.substring(0, splitPoint)}
   </Card>
   <Card>
     <h3>Props & Usage</h3>
-    ${mdxContent.substring(500)}
+    ${mdxContent.substring(splitPoint)}
   </Card>
 </Grid>`;
   }

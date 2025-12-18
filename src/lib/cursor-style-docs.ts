@@ -4,7 +4,7 @@
  */
 
 import { callLangChain } from './langchain-service';
-import { retrieveContext, getSearchResults } from '../rag/index';
+import { retrieveContext } from '../rag/index';
 import { SimpleRepo } from './github-service';
 import { fetchGitHubFile, listAllFiles } from './github-service';
 
@@ -108,7 +108,7 @@ async function generateFileDocumentation(
     3
   ).catch(() => '');
 
-  const language = detectLanguage(filePath, content);
+  const language = detectLanguage(filePath);
   
   const prompt = `You are an expert code documentation generator (like Cursor AI). Generate comprehensive, detailed, inline-style documentation for this code file.
 
@@ -220,7 +220,7 @@ Always include the actual code with extensive documentation comments added. Be t
     const documentedCode = await callLangChain(
       prompt,
       systemPrompt,
-      'gpt-4o',
+      'gpt-4o-mini', // Use gpt-4o-mini for everything except main documentation writing
       0.2, // Lower temperature for more consistent, detailed output
       repo.fullName,
       true // Use RAG
@@ -234,9 +234,9 @@ Always include the actual code with extensive documentation comments added. Be t
 }
 
 /**
- * Detect programming language from file path and content
+ * Detect programming language from file path
  */
-function detectLanguage(filePath: string, content: string): string {
+function detectLanguage(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   
   const languageMap: Record<string, string> = {
@@ -365,7 +365,7 @@ Return only the documented code with extensive comments added.`;
 - Make it as comprehensive as professional API documentation
 
 Be thorough and detailed - aim for documentation quality similar to MDN, TypeScript Handbook, or major open-source projects.`,
-      'gpt-4o',
+      'gpt-4o-mini', // Use gpt-4o-mini for everything except main documentation writing
       0.2, // Lower temperature for more consistent, detailed output
       repoName,
       true

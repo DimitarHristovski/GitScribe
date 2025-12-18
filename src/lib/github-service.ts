@@ -297,7 +297,11 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
             console.log('Trying main branch instead of master');
             return fetchGitHubFile(owner, repo, path, 'main', token);
           }
-          console.log(`File not found: ${path} (404)`);
+          // Silently return null for 404s - file doesn't exist, which is expected for optional files
+          // Only log in dev mode to reduce console noise
+          if (import.meta.env.DEV) {
+            console.debug(`File not found: ${path} (404) - this is expected for optional files`);
+          }
           return null;
         }
         // If API fails, fall through to raw URL method
@@ -336,7 +340,11 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
           console.log('Trying main branch instead of master');
           return fetchGitHubFile(owner, repo, path, 'main', token);
         }
-        console.log(`File not found: ${path} (404)`);
+        // Silently return null for 404s - file doesn't exist, which is expected for optional files
+        // Only log in dev mode to reduce console noise
+        if (import.meta.env.DEV) {
+          console.debug(`File not found: ${path} (404) - this is expected for optional files`);
+        }
         return null;
       }
       if (response.status === 403) {
@@ -824,75 +832,4 @@ export async function deleteFile(
   }
 }
 
-/**
- * Get the latest commit SHA for a branch
- */
-export async function getLatestCommitSha(
-  owner: string,
-  repo: string,
-  branch: string = 'main',
-  token?: string
-): Promise<string | null> {
-  const githubToken = token || getGitHubToken();
-  if (!githubToken) {
-    throw new Error('GitHub token is required to check commits.');
-  }
-
-  const headers = createGitHubHeaders(githubToken);
-
-  try {
-    // Get the branch reference
-    const refUrl = `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`;
-    const refResponse = await fetch(refUrl, { headers });
-
-    if (!refResponse.ok) {
-      throw new Error(`Failed to get branch ref: ${refResponse.status} ${refResponse.statusText}`);
-    }
-
-    const refData = await refResponse.json();
-    return refData.object?.sha || null;
-  } catch (error: any) {
-    console.error('Error getting latest commit SHA:', error);
-    throw new Error(`Failed to get latest commit SHA: ${error.message || 'Unknown error'}`);
-  }
-}
-
-/**
- * Check if a commit is a merge commit or push to main
- */
-export async function getCommitInfo(
-  owner: string,
-  repo: string,
-  sha: string,
-  token?: string
-): Promise<{ message: string; isMerge: boolean; author: string; date: string } | null> {
-  const githubToken = token || getGitHubToken();
-  if (!githubToken) {
-    throw new Error('GitHub token is required to check commits.');
-  }
-
-  const headers = createGitHubHeaders(githubToken);
-
-  try {
-    const url = `https://api.github.com/repos/${owner}/${repo}/git/commits/${sha}`;
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get commit info: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const isMerge = data.parents?.length > 1 || false;
-    
-    return {
-      message: data.message || '',
-      isMerge,
-      author: data.author?.name || 'Unknown',
-      date: data.author?.date || new Date().toISOString(),
-    };
-  } catch (error: any) {
-    console.error('Error getting commit info:', error);
-    throw new Error(`Failed to get commit info: ${error.message || 'Unknown error'}`);
-  }
-}
 
