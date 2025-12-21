@@ -3,8 +3,8 @@
  * Discovers and validates repositories for documentation generation
  */
 
-import { AgentState, AgentStep, RepoAnalysis } from './types';
-import { SimpleRepo, fetchUserRepos, parseGitHubUrl } from '../github-service';
+import { AgentState, AgentStep } from './types';
+import { SimpleRepo, fetchUserRepos } from '../github-service';
 
 export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<AgentState>> {
   console.log('[RepoDiscovery] Starting repository discovery...');

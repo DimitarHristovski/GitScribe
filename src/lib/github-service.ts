@@ -203,7 +203,7 @@ export async function generateDirectoryTree(
   branch: string = 'main',
   token?: string,
   prefix: string = '',
-  isLast: boolean = true,
+  _isLast: boolean = true,
   maxDepth: number = 10,
   currentDepth: number = 0
 ): Promise<string> {
@@ -276,7 +276,7 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
     if (githubToken) {
       try {
         const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-        console.log('Fetching GitHub file via API:', apiUrl);
+    //    console.log('Fetching GitHub file via API:', apiUrl);
         
         const headers = createGitHubHeaders(githubToken);
         const response = await fetch(apiUrl, {
@@ -294,7 +294,7 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
         } else if (response.status === 404) {
           // Try main branch if master fails
           if (branch === 'master') {
-            console.log('Trying main branch instead of master');
+          //  console.log('Trying main branch instead of master');
             return fetchGitHubFile(owner, repo, path, 'main', token);
           }
           // Silently return null for 404s - file doesn't exist, which is expected for optional files

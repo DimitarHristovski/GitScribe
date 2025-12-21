@@ -101,7 +101,20 @@ export async function repoAnalysisAgent(state: AgentState): Promise<Partial<Agen
       let complexity: 'simple' | 'moderate' | 'complex' = 'moderate';
 
       try {
-        const analysisPrompt = `Analyze this GitHub repository and provide insights:
+        // Try to find database-related files for additional context
+        const databaseFiles = rootContents.filter(item => 
+          item.type === 'file' && (
+            item.name.includes('migration') ||
+            item.name.includes('seed') ||
+            item.name.includes('schema') ||
+            item.name.includes('model') ||
+            item.name.endsWith('.sql') ||
+            item.name.includes('prisma') ||
+            item.name.includes('database')
+          )
+        ).slice(0, 5).map(item => item.name);
+
+        const analysisPrompt = `Analyze this GitHub repository and provide comprehensive insights:
 
 Repository: ${repo.fullName}
 Description: ${repo.description || 'No description'}
@@ -109,20 +122,30 @@ Language: ${repo.language || languages.join(', ') || 'Unknown'}
 Has README: ${readme ? 'Yes' : 'No'}
 Has package.json: ${packageData ? 'Yes' : 'No'}
 Main files: ${mainFiles.slice(0, 10).join(', ')}
+${databaseFiles.length > 0 ? `Database-related files found: ${databaseFiles.join(', ')}` : ''}
 
 ${packageData ? `Package.json dependencies: ${Object.keys(packageData.dependencies || {}).slice(0, 20).join(', ')}` : ''}
+${readme ? `\nREADME content (first 1000 chars):\n${readme.substring(0, 1000)}` : ''}
 
-Provide:
-1. A brief summary (2-3 sentences) of what this repository does
-2. 3-5 key features or capabilities
-3. The primary tech stack
+CRITICAL: First understand what this application DOES - its purpose, role, and main functionality. 
+Pay special attention to database schemas, migrations, seed data, and data models - these often reveal what the application actually does.
+Then provide:
+
+1. A comprehensive summary (4-6 sentences) explaining:
+   - What the application/project does
+   - Its primary purpose and role
+   - Main problem it solves
+   - Key value proposition
+   - Target users or use cases
+2. 5-8 key features or capabilities (be specific about what the app can do)
+3. The primary tech stack (languages, frameworks, tools)
 4. Complexity level (simple/moderate/complex)
 
 Format as JSON:
 {
-  "summary": "...",
-  "keyFeatures": ["...", "..."],
-  "techStack": ["...", "..."],
+  "summary": "Comprehensive 4-6 sentence explanation of what this application does, its purpose, role, and main functionality...",
+  "keyFeatures": ["Feature 1", "Feature 2", ...],
+  "techStack": ["Technology 1", "Technology 2", ...],
   "complexity": "simple|moderate|complex"
 }`;
 

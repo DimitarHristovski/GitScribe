@@ -33,7 +33,7 @@ export async function generateCursorStyleDocs(
     language = 'typescript',
   } = options;
 
-  console.log(`[CursorDocs] Generating Ai-Style docs for ${repo.fullName}`);
+  //console.log(`[CursorDocs] Generating Ai-Style docs for ${repo.fullName}`);
 
   // Get code files
   const files = await listAllFiles(

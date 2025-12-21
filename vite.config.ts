@@ -53,14 +53,14 @@ export default defineConfig({
             proxyReq.removeHeader('x-api-key');
           });
           
-          proxy.on('proxyRes', (proxyRes, req, res) => {
+          proxy.on('proxyRes', (proxyRes) => {
             // Log response status for debugging
             if (proxyRes.statusCode === 401) {
               console.error('[Vite Proxy] 401 Unauthorized - API key issue');
             }
           });
           
-          proxy.on('error', (err, req, res) => {
+          proxy.on('error', (err) => {
             console.error('[Vite Proxy] Proxy error:', err);
           });
         },

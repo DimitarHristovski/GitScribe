@@ -118,8 +118,8 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
             headers: {
               'Content-Type': 'application/json',
               'x-api-key': apiKey, // Pass API key in custom header (from localStorage)
+              ...headers, // Merge any additional headers
             },
-            headers,
             body: JSON.stringify({
               messages: body.messages || [],
               model: body.model || model,
@@ -217,12 +217,15 @@ export async function callLangChain(
 
   // Retrieve RAG context if enabled
   // Check if RAG context is already in the prompt (from DocsWriter)
-  const hasRAGInPrompt = prompt.includes('Relevant Code Context:') || prompt.includes('RAG context');
+  const hasRAGInPrompt = prompt.includes('Relevant Code Context:') || prompt.includes('RAG context') || prompt.includes('ACTUAL CODE FROM REPOSITORY');
   let ragContext = '';
   if (useRAG && repoName && !hasRAGInPrompt) {
     try {
       // Increase chunks for more comprehensive context (matching DocsWriter's 10 chunks)
-      ragContext = await retrieveContext(prompt, repoName, 10);
+      const rawContext = await retrieveContext(prompt, repoName, 10);
+      if (rawContext) {
+        ragContext = `\n\nRelevant code context:\n${rawContext}\n`;
+      }
     } catch (error) {
       console.warn('[LangChain] RAG retrieval failed, continuing without context:', error);
     }
@@ -230,7 +233,7 @@ export async function callLangChain(
     // RAG context already in prompt, skip retrieval to avoid duplication
     console.log('[LangChain] RAG context already in prompt, skipping retrieval');
   }
-
+  
   const messages = [];
   if (systemPrompt) {
     messages.push(new SystemMessage(systemPrompt));

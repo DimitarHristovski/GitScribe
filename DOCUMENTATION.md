@@ -512,7 +512,7 @@ The system leverages modern web technologies including React for the user interf
 
 - **AgentManager**: The core orchestration class that manages the agent workflow execution. It maintains the agent state machine, coordinates agent execution, and handles transitions between workflow steps. The Manager uses the agent graph to determine execution order and dependencies.
 
-- **DocsWriter Agent**: Responsible for generating the actual documentation content. It uses RAG to retrieve relevant code context, calls LangChain with comprehensive prompts, and formats the output according to user-selected formats and sections. The agent generates extensive documentation (4000-8000+ words) following professional documentation standards.
+- **DocsWriter Agent**: Responsible for generating the actual documentation content. It uses RAG to retrieve relevant code context, calls LangChain with comprehensive prompts, and formats the output according to user-selected formats and sections. The agent generates extensive documentation (0-8000+ words) following professional documentation standards.
 
 - **RepoAnalysis Agent**: Analyzes repository structure, technology stack, and code patterns. It provides insights that inform the documentation planning and writing process. The analysis includes framework detection, language identification, complexity assessment, and key feature extraction.
 

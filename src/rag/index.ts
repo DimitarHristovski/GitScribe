@@ -23,28 +23,109 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
   // Delete existing vectors for this repo
   await deleteVectorsByRepo(repo.fullName);
   
-  // Get all files in the repository
+  // Get all files in the repository (increased depth to capture more files)
   const files = await listAllFiles(
     repo.owner,
     repo.name,
     '',
     repo.defaultBranch,
     undefined,
-    3 // max depth
+    5 // max depth (increased from 3 to capture more nested files)
   );
   
-  // Filter to code files only
-  const codeExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs', '.cpp', '.c', '.h', '.hpp'];
-  const codeFiles = files.filter(file => 
-    codeExtensions.some(ext => file.toLowerCase().endsWith(ext))
-  );
+  // Files to exclude (too large, binary, or not useful)
+  const excludePatterns = [
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'node_modules',
+    '.git',
+    '.vscode',
+    '.idea',
+    'dist',
+    'build',
+    '.next',
+    '.nuxt',
+    '.cache',
+    '.DS_Store',
+    'Thumbs.db'
+  ];
   
-  console.log(`[RAG] Found ${codeFiles.length} code files to index`);
+  // Binary file extensions to exclude (can't be meaningfully indexed)
+  // Note: We allow .db, .sqlite, .sqlite3 files - they'll be checked for text content
+  const binaryExtensions = [
+    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', // Images
+    '.woff', '.woff2', '.ttf', '.eot', '.otf', // Fonts
+    '.mp4', '.mp3', '.avi', '.mov', '.wmv', // Media
+    '.zip', '.tar', '.gz', '.rar', '.7z', // Archives
+    '.exe', '.dll', '.so', '.dylib', '.bin', // Binaries
+    '.pdf', // PDFs (would need special parsing)
+    '.xlsx', '.xls', '.docx', '.doc' // Office files
+    // Note: .db, .sqlite, .sqlite3 are NOT excluded - they may contain text-based schemas or SQL
+  ];
+  
+  // Database-related file patterns to prioritize (these are important for understanding the app)
+  const databaseFilePatterns = [
+    /\.sql$/i,           // SQL files
+    /migration/i,        // Migration files
+    /seed/i,             // Seed data files
+    /schema/i,           // Schema files
+    /fixture/i,          // Test fixtures
+    /mock.*data/i,       // Mock data
+    /\.db$/i,            // Database files (may contain text)
+    /\.sqlite$/i,        // SQLite files
+    /\.sqlite3$/i,       // SQLite3 files
+    /prisma/i,           // Prisma schema files
+    /typeorm/i,          // TypeORM entities
+    /sequelize/i,        // Sequelize models
+    /drizzle/i,          // Drizzle schema
+    /knex/i,             // Knex migrations
+    /database/i,         // Database-related files
+    /models?\.(ts|js|py|java|go|rs)$/i  // Model files
+  ];
+  
+  // Filter files: include all text-based files, exclude build artifacts and binaries
+  const filesToIndex = files.filter(file => {
+    const lowerFile = file.toLowerCase();
+    
+    // Exclude files matching exclude patterns (build artifacts, etc.)
+    if (excludePatterns.some(pattern => lowerFile.includes(pattern.toLowerCase()))) {
+      return false;
+    }
+    
+    // Check if it's a database-related file (always include these)
+    const isDatabaseFile = databaseFilePatterns.some(pattern => pattern.test(file));
+    if (isDatabaseFile) {
+      return true; // Include database files even if they have binary extensions
+    }
+    
+    // Exclude binary files (but database files are already handled above)
+    if (binaryExtensions.some(ext => lowerFile.endsWith(ext))) {
+      return false;
+    }
+    
+    // Include all other files (code, config, markdown, text, etc.)
+    return true;
+  });
+  
+  // Sort files to prioritize database-related files
+  const sortedFiles = filesToIndex.sort((a, b) => {
+    const aIsDb = databaseFilePatterns.some(pattern => pattern.test(a));
+    const bIsDb = databaseFilePatterns.some(pattern => pattern.test(b));
+    if (aIsDb && !bIsDb) return -1;
+    if (!aIsDb && bIsDb) return 1;
+    return 0;
+  });
+  
+  console.log(`[RAG] Found ${sortedFiles.length} files to index (out of ${files.length} total)`);
   
   // Chunk all files
   const allChunks: RagDocument[] = [];
   
-  for (const filePath of codeFiles.slice(0, 50)) { // Limit to 50 files for now
+  // Process all files (no limit, but skip very large files)
+  const MAX_FILE_SIZE = 500000; // 500KB max per file to avoid memory issues
+  
+  for (const filePath of sortedFiles) {
     try {
       const content = await fetchGitHubFile(
         repo.owner,
@@ -54,6 +135,20 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
       );
       
       if (content) {
+        // Skip very large files (likely binary or minified)
+        if (content.length > MAX_FILE_SIZE) {
+          console.warn(`[RAG] Skipping large file: ${filePath} (${content.length} chars)`);
+          continue;
+        }
+        
+        // Try to detect if it's binary (contains null bytes or too many non-printable chars)
+        const nullByteCount = (content.match(/\0/g) || []).length;
+        const nonPrintableCount = (content.match(/[\x00-\x08\x0E-\x1F\x7F-\x9F]/g) || []).length;
+        if (nullByteCount > 0 || (nonPrintableCount / content.length) > 0.1) {
+          console.warn(`[RAG] Skipping binary file: ${filePath}`);
+          continue;
+        }
+        
         const chunks = chunkCodeFile(repo.fullName, filePath, content);
         allChunks.push(...chunks);
       }

@@ -18,7 +18,7 @@ export default function Assistant({
   const [selectedLanguage, setSelectedLanguage] = useState<DocLanguage>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const saved = window.localStorage.getItem('selectedLanguage');
-      return (saved as DocLanguage) || 'en';
+    return (saved as DocLanguage) || 'en';
     }
     return 'en';
   });
@@ -40,8 +40,8 @@ export default function Assistant({
     const handleLanguageChange = () => {
       if (window.localStorage) {
         const saved = window.localStorage.getItem('selectedLanguage');
-        if (saved && saved !== selectedLanguage) {
-          setSelectedLanguage(saved as DocLanguage);
+      if (saved && saved !== selectedLanguage) {
+        setSelectedLanguage(saved as DocLanguage);
         }
       }
     };
@@ -52,8 +52,8 @@ export default function Assistant({
     const handleFocus = () => {
       if (window.localStorage) {
         const saved = window.localStorage.getItem('selectedLanguage');
-        if (saved && saved !== selectedLanguage) {
-          setSelectedLanguage(saved as DocLanguage);
+      if (saved && saved !== selectedLanguage) {
+        setSelectedLanguage(saved as DocLanguage);
         }
       }
     };
@@ -150,14 +150,6 @@ export default function Assistant({
           }]);
         }
       }
-      
-      // If no documentation mode, show error
-      setMessages((prev) => [...prev, { 
-        role: 'assistant', 
-        content: t('assistantErrorNoDocumentation'), 
-        timestamp: Date.now() 
-      }]);
-      setLoading(false);
     } catch (error: any) {
       console.error('Assistant error:', error);
       const errorMessage = error.message || t('unknownErrorOccurred');
