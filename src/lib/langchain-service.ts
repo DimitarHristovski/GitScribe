@@ -82,10 +82,12 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
           // Parse the request body
           const body = init?.body ? JSON.parse(init.body as string) : {};
           
-          // Route through Vite proxy (only works in dev mode)
-          // In production, we need to call OpenAI directly (CORS must be handled server-side)
+          // Route through proxy to avoid CORS issues
+          // In dev: use Vite proxy
+          // In production: use serverless function API route (e.g., Vercel, Netlify, etc.)
           const isDev = import.meta.env.DEV;
-          const proxyUrl = isDev ? '/api/openai/chat/completions' : 'https://api.openai.com/v1/chat/completions';
+          // Use the same proxy path in both dev and production (serverless function handles it in prod)
+          const proxyUrl = '/api/openai/chat/completions';
           
           if (!apiKey) {
             throw new Error('OpenAI API key is not configured. Please set your API key in Settings.');
@@ -105,20 +107,14 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
             'Content-Type': 'application/json',
           };
           
-          if (isDev) {
-            // In dev, pass API key in custom header for proxy
-            headers['x-api-key'] = apiKey;
-          } else {
-            // In production, use Authorization header directly
-            headers['Authorization'] = `Bearer ${apiKey}`;
-          }
+          // Always pass API key in x-api-key header (works for both dev proxy and serverless function)
+          headers['x-api-key'] = apiKey;
           
           const proxyResponse = await originalFetch(proxyUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-api-key': apiKey, // Pass API key in custom header (from localStorage)
-              ...headers, // Merge any additional headers
+              'x-api-key': apiKey, // Pass API key in custom header
             },
             body: JSON.stringify({
               messages: body.messages || [],
@@ -153,7 +149,7 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
               if (isDev) {
                 throw new Error('Proxy endpoint not found (404). Make sure the Vite dev server is running and the proxy is configured correctly.');
               } else {
-                throw new Error('OpenAI API endpoint not found (404). This may be a CORS issue. Consider using a backend proxy in production.');
+                throw new Error('API proxy endpoint not found (404). Make sure the serverless function is deployed. See deployment instructions in the README.');
               }
             }
             
