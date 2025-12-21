@@ -375,6 +375,7 @@ export type TranslationKey =
   | 'duringGeneration'
   | 'github'
   | 'exportDocumentation'
+  | 'exportDocumentationDescription'
   | 'downloadGeneratedDocumentation'
   | 'exportFormats'
   | 'markdownStandardFormat'
@@ -611,12 +612,14 @@ export type TranslationKey =
   | 'sectionComponents'
   | 'sectionTestingCicd'
   | 'sectionChangelog'
+  | 'sectionInlineCode'
   | 'sectionReadmeShort'
   | 'sectionArchitectureShort'
   | 'sectionApiReferenceShort'
   | 'sectionComponentsShort'
   | 'sectionTestingCicdShort'
   | 'sectionChangelogShort'
+  | 'sectionInlineCodeShort'
   | 'aiPoweredDocumentationGenerationForGitHub'
   | 'requiredForAiPoweredDocumentationGeneration'
   | 'functionFetchUserRepos'
@@ -1023,6 +1026,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     duringGeneration: 'during generation',
     github: 'GitHub',
     exportDocumentation: 'Export Documentation',
+    exportDocumentationDescription: 'Export your generated documentation in multiple formats including Markdown, HTML, PDF, and more. Download documentation files or commit them directly to your GitHub repositories.',
     downloadGeneratedDocumentation: 'Download your generated documentation in multiple formats for use in documentation sites, wikis, or version control systems.',
     exportFormats: 'Export Formats',
     markdownStandardFormat: 'Markdown - Standard .md format for GitHub, GitLab, and documentation sites',
@@ -1256,12 +1260,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Components',
     sectionTestingCicd: 'Testing & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Inline Code Documentation',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'AI-powered documentation generation for GitHub repositories',
     requiredForAiPoweredDocumentationGeneration: 'Required for AI-powered documentation generation.',
     functionFetchUserRepos: 'fetchUserRepos',
@@ -1665,6 +1671,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     duringGeneration: 'pendant la génération',
     github: 'GitHub',
     exportDocumentation: 'Exporter la Documentation',
+    exportDocumentationDescription: 'Exportez votre documentation générée dans plusieurs formats, notamment Markdown, HTML, PDF et plus encore. Téléchargez les fichiers de documentation ou commitez-les directement dans vos dépôts GitHub.',
     downloadGeneratedDocumentation: 'Téléchargez votre documentation générée dans plusieurs formats pour une utilisation dans des sites de documentation, wikis ou systèmes de contrôle de version.',
     exportFormats: 'Formats d\'Export',
     markdownStandardFormat: 'Markdown - Format .md standard pour GitHub, GitLab et sites de documentation',
@@ -1898,12 +1905,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Composants',
     sectionTestingCicd: 'Tests & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Documentation de Code Inline',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'Génération de documentation alimentée par IA pour les dépôts GitHub',
     requiredForAiPoweredDocumentationGeneration: 'Requis pour la génération de documentation alimentée par IA.',
     functionFetchUserRepos: 'fetchUserRepos',
@@ -2307,6 +2316,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     duringGeneration: 'während der Generierung',
     github: 'GitHub',
     exportDocumentation: 'Dokumentation Exportieren',
+    exportDocumentationDescription: 'Exportieren Sie Ihre generierte Dokumentation in mehreren Formaten, einschließlich Markdown, HTML, PDF und mehr. Laden Sie Dokumentationsdateien herunter oder committen Sie sie direkt in Ihre GitHub-Repositories.',
     downloadGeneratedDocumentation: 'Laden Sie Ihre generierte Dokumentation in mehreren Formaten für die Verwendung in Dokumentationsseiten, Wikis oder Versionskontrollsystemen herunter.',
     exportFormats: 'Exportformate',
     markdownStandardFormat: 'Markdown - Standard .md Format für GitHub, GitLab und Dokumentationsseiten',
@@ -2540,12 +2550,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Komponenten',
     sectionTestingCicd: 'Tests & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Inline-Code-Dokumentation',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'KI-gestützte Dokumentationsgenerierung für GitHub-Repositories',
     requiredForAiPoweredDocumentationGeneration: 'Erforderlich für KI-gestützte Dokumentationsgenerierung.',
     functionFetchUserRepos: 'fetchUserRepos',

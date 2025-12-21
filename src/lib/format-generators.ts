@@ -3,10 +3,10 @@
  * Generates documentation in different output formats based on user selection
  */
 
-import { DocOutputFormat, DocSectionType, DocSection } from '../types/core';
-import { generateDocumentationFromGitHub, DocumentationOptions } from './documentation-writer';
+import { DocOutputFormat, DocSectionType } from '../types/core';
+import { DocumentationOptions } from './documentation-writer';
 import { callLangChain } from './langchain-service';
-import { listGitHubContents, fetchGitHubFile, parseGitHubUrl, getGitHubToken } from './github-service';
+import { listGitHubContents, parseGitHubUrl, getGitHubToken } from './github-service';
 
 /**
  * Generate documentation in a specific format
@@ -16,7 +16,7 @@ export async function generateFormatDocumentation(
   format: DocOutputFormat,
   sectionType: DocSectionType,
   baseMarkdown: string,
-  options: DocumentationOptions = {},
+  _options: DocumentationOptions = {},
   repoAnalysis?: any // Optional repo analysis data
 ): Promise<string> {
   switch (format) {
@@ -55,7 +55,7 @@ function generateMarkdownDocumentation(sectionType: DocSectionType, baseMarkdown
   console.log(`[FormatGenerator] Markdown for ${sectionType}: ${wordCount} words, ${charCount} characters`);
   
   if (wordCount < 1000) {
-    console.warn(`[FormatGenerator] WARNING: Markdown content is very short (${wordCount} words). Expected 4000-6000+ words.`);
+    console.warn(`[FormatGenerator] WARNING: Markdown content is very short (${wordCount} words). Expected 0-6000+ words.`);
   }
   
   return result;
@@ -101,7 +101,7 @@ ${analysisContext}
 ${structureInfo}
 
 Repository Documentation:
-${baseMarkdown.substring(0, 2000)}
+${baseMarkdown.substring(0, 0)}
 
 Generate a Mermaid diagram that accurately represents:
 ${sectionType === 'ARCHITECTURE' ? 'The system architecture, component relationships, and data flow' :
@@ -181,8 +181,8 @@ graph LR
 async function generateMDXDocumentation(
   sectionType: DocSectionType,
   baseMarkdown: string,
-  githubUrl: string,
-  repoAnalysis?: any
+  _githubUrl: string,
+  _repoAnalysis?: any
 ): Promise<string> {
   const sectionHeader = getSectionHeader(sectionType);
   
@@ -203,7 +203,7 @@ export const meta = {
   // Convert code blocks to MDX CodeBlock components
   mdxContent = mdxContent.replace(
     /```(\w+)?\n([\s\S]*?)```/g,
-    (match, lang, code) => {
+    (_match, lang, code) => {
       return `<CodeBlock language="${lang || 'text'}" showLineNumbers>
 ${code.trim()}
 </CodeBlock>`;
@@ -213,7 +213,7 @@ ${code.trim()}
   // Convert blockquotes to Callout components
   mdxContent = mdxContent.replace(
     /^> (.+)$/gm,
-    (match, content) => {
+    (_match, content) => {
       return `<Callout type="info">
 ${content.trim()}
 </Callout>`;
@@ -566,7 +566,7 @@ function markdownToHTML(markdown: string): string {
   html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
   
   // Code blocks (must come before inline code)
-  html = html.replace(/```(\w+)?\n([\s\S]*?)```/gim, (match, lang, code) => {
+  html = html.replace(/```(\w+)?\n([\s\S]*?)```/gim, (_match, lang, code) => {
     return `<pre><code class="language-${lang || 'text'}">${escapeHtml(code.trim())}</code></pre>`;
   });
   

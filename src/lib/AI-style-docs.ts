@@ -1,5 +1,5 @@
 /**
- * Cursor-Style Documentation Generator
+ * Ai-Style Documentation Generator
  * Generates inline code documentation similar to Cursor AI
  */
 
@@ -18,7 +18,7 @@ export interface CursorDocOptions {
 }
 
 /**
- * Generate Cursor-style documentation for a repository
+ * Generate Ai-Style documentation for a repository
  */
 export async function generateCursorStyleDocs(
   repo: SimpleRepo,
@@ -33,7 +33,7 @@ export async function generateCursorStyleDocs(
     language = 'typescript',
   } = options;
 
-  console.log(`[CursorDocs] Generating Cursor-style docs for ${repo.fullName}`);
+  //console.log(`[CursorDocs] Generating Ai-Style docs for ${repo.fullName}`);
 
   // Get code files
   const files = await listAllFiles(
@@ -52,7 +52,7 @@ export async function generateCursorStyleDocs(
   ).slice(0, 20); // Limit to 20 files for performance
 
   let documentation = `# ${repo.name} - Code Documentation\n\n`;
-  documentation += `*Generated in Cursor-style format*\n\n`;
+  documentation += `*Generated in Ai-Style format*\n\n`;
   documentation += `---\n\n`;
 
   // Process each file

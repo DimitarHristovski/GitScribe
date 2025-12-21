@@ -38,10 +38,26 @@ export async function search(
   });
   
   // Sort by score (highest first) and return top K
-  return results
+  const sortedResults = results
     .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .filter(result => result.score > 0.5); // Minimum similarity threshold
+    .slice(0, topK);
+  
+  // Log results for debugging
+  if (sortedResults.length === 0) {
+    console.warn(`[RAG] No results found for query: "${query}" (repo: ${repoName || 'all'})`);
+    console.warn(`[RAG] Total vectors searched: ${vectors.length}`);
+    if (vectors.length > 0) {
+      const topScores = results.slice(0, 5).map(r => r.score);
+      console.warn(`[RAG] Top 5 similarity scores: ${topScores.join(', ')}`);
+    }
+  } else {
+    console.log(`[RAG] Found ${sortedResults.length} results for query: "${query.substring(0, 50)}..." (repo: ${repoName || 'all'})`);
+    console.log(`[RAG] Similarity scores: ${sortedResults.map(r => r.score.toFixed(3)).join(', ')}`);
+  }
+  
+  // Lower threshold to 0.3 to get more results (was 0.5)
+  // This helps when embeddings aren't perfect matches
+  return sortedResults.filter(result => result.score > 0.3);
 }
 
 /**
@@ -102,6 +118,7 @@ export function formatResultsAsContext(results: RagSearchResult[]): string {
 ${doc.content}`;
   });
   
-  return `\n\nRelevant code context:\n${contextParts.join('\n\n')}\n`;
+  // Return just the content without header (header is added in DocsWriter)
+  return contextParts.join('\n\n');
 }
 

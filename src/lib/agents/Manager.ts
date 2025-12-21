@@ -158,12 +158,12 @@ export class AgentManager {
 
     // Check if should run
     if (node.shouldRun && !node.shouldRun(this.state)) {
-      console.log(`[Manager] Skipping ${node.name} - conditions not met`);
-      console.log(`[Manager] State check:`, {
-        completedSteps: Array.from(this.state.completedSteps || []),
-        hasDiscoveredRepos: !!this.state.discoveredRepos && this.state.discoveredRepos.length > 0,
-        hasRepoAnalyses: !!this.state.repoAnalyses && this.state.repoAnalyses.size > 0,
-      });
+      // console.log(`[Manager] Skipping ${node.name} - conditions not met`);
+      // console.log(`[Manager] State check:`, {
+      //   completedSteps: Array.from(this.state.completedSteps || []),
+      //   hasDiscoveredRepos: !!this.state.discoveredRepos && this.state.discoveredRepos.length > 0,
+      //   hasRepoAnalyses: !!this.state.repoAnalyses && this.state.repoAnalyses.size > 0,
+      // });
       return false; // Return false to indicate step was skipped
     }
 

@@ -1108,6 +1108,8 @@ ${documentation.split('\n').map(line => {
                                    sectionType === 'API' ? t('sectionApiReference') :
                                    sectionType === 'COMPONENTS' ? t('sectionComponents') :
                                    sectionType === 'TESTING_CI' ? t('sectionTestingCicd') :
+                                   sectionType === 'CHANGELOG' ? t('sectionChangelog') :
+                                   sectionType === 'INLINE_CODE' ? t('sectionInlineCode') :
                                    t('sectionChangelog')}
                           >
                             {sectionType === 'README' ? t('sectionReadmeShort') :
@@ -1115,6 +1117,8 @@ ${documentation.split('\n').map(line => {
                              sectionType === 'API' ? t('sectionApiReferenceShort') :
                              sectionType === 'COMPONENTS' ? t('sectionComponentsShort') :
                              sectionType === 'TESTING_CI' ? t('sectionTestingCicdShort') :
+                             sectionType === 'CHANGELOG' ? t('sectionChangelogShort') :
+                             sectionType === 'INLINE_CODE' ? t('sectionInlineCodeShort') :
                              t('sectionChangelogShort')}
                           </button>
                         ))}
@@ -1569,7 +1573,7 @@ ${documentation.split('\n').map(line => {
               >
                 <Maximize2 className="w-4 h-4 text-orange-600 group-hover:text-orange-700 transition-colors mx-auto" />
               </button>
-              <div className="w-full h-px bg-gray-0 my-2 "></div>
+              <div className="w-full h-px bg-gray-0 my-5 "></div>
 
               {/* Action Buttons - Icon Only */}
               <div className="w-full space-y-2 px-2">

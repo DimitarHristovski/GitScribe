@@ -1,7 +1,18 @@
-// Import all 100 section types
-import { SectionType100 } from '../lib/section-types-100';
-
-export type SectionType = SectionType100;
+// Section types - using a simple string union for now
+// TODO: Implement full 100 section types if needed
+export type SectionType = 
+  | 'navbar'
+  | 'hero'
+  | 'features'
+  | 'pricing'
+  | 'testimonials'
+  | 'gallery'
+  | 'faq'
+  | 'contact'
+  | 'cta'
+  | 'about'
+  | 'footer'
+  | string; // Allow other section types
 
 // Design Library - Global Theme Tokens
 export type ThemeStyle = 'minimal' | 'playful' | 'corporate' | 'elegant' | 'brutalist';
