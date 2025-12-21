@@ -101,9 +101,12 @@ export default function Assistant({
         // Determine if this is an edit request or just a conversation
         const isEditRequest = isDocumentationEditRequest(userMessage);
         
+        // Detect the language of the user's message
+        const detectedLanguage = detectMessageLanguage(userMessage);
+        
         if (isEditRequest) {
           // User explicitly wants to edit - process the edit
-        const response = await processDocumentationEditRequest(userMessage, documentation, model, t, selectedLanguage);
+        const response = await processDocumentationEditRequest(userMessage, documentation, model, t, detectedLanguage);
         
         if (response.updatedDocumentation) {
           onUpdateDocumentation(response.updatedDocumentation);
@@ -116,7 +119,7 @@ export default function Assistant({
         }]);
         } else {
           // User wants to chat about the documentation - have a conversation
-          const response = await processConversationalRequest(userMessage, documentation, model, t, messages, selectedLanguage);
+          const response = await processConversationalRequest(userMessage, documentation, model, t, messages, detectedLanguage);
           
           setMessages((prev) => [...prev, { 
             role: 'assistant', 
@@ -386,6 +389,73 @@ export default function Assistant({
 }
 
 /**
+ * Detect the language of a user message
+ * Returns a language code or 'auto' to let the AI detect it
+ */
+function detectMessageLanguage(message: string): DocLanguage | 'auto' {
+  const lowerMessage = message.toLowerCase();
+  
+  // French indicators
+  const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'ou', 'pour', 'avec', 'sans', 'est', 'sont', 'être', 'avoir', 'faire', 'aller', 'vous', 'nous', 'ils', 'elles', 'c\'est', 'qu\'', 'd\'', 'l\'', 'n\''];
+  const frenchChars = /[éèêëàâçùûüôö]/;
+  const frenchPatterns = /(qu'|d'|l'|n'|c'est)/i;
+  
+  // German indicators
+  const germanWords = ['der', 'die', 'das', 'und', 'oder', 'für', 'mit', 'ohne', 'ist', 'sind', 'sein', 'haben', 'machen', 'gehen', 'sie', 'wir', 'ein', 'eine', 'einen'];
+  const germanChars = /[äöüß]/;
+  const germanPatterns = /(der|die|das|ein|eine|einen)\s/i;
+  
+  // Count matches
+  let frenchScore = 0;
+  let germanScore = 0;
+  
+  // Check for French words
+  frenchWords.forEach(word => {
+    if (lowerMessage.includes(word)) {
+      frenchScore += 1;
+    }
+  });
+  
+  // Check for French characters
+  if (frenchChars.test(message)) {
+    frenchScore += 3;
+  }
+  
+  // Check for French patterns
+  if (frenchPatterns.test(message)) {
+    frenchScore += 2;
+  }
+  
+  // Check for German words
+  germanWords.forEach(word => {
+    if (lowerMessage.includes(word)) {
+      germanScore += 1;
+    }
+  });
+  
+  // Check for German characters
+  if (germanChars.test(message)) {
+    germanScore += 3;
+  }
+  
+  // Check for German patterns
+  if (germanPatterns.test(message)) {
+    germanScore += 2;
+  }
+  
+  // Determine language based on scores
+  if (frenchScore > germanScore && frenchScore >= 2) {
+    return 'fr';
+  } else if (germanScore > frenchScore && germanScore >= 2) {
+    return 'de';
+  }
+  
+  // If no clear match, return 'auto' to let AI detect the language
+  // This allows support for any language
+  return 'auto';
+}
+
+/**
  * Determine if a message is an explicit edit request or just conversational
  */
 function isDocumentationEditRequest(message: string): boolean {
@@ -450,7 +520,7 @@ async function processConversationalRequest(
   model: string = 'gpt-4o-mini',
   t?: (key: TranslationKey) => string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: number }> = [],
-  language: DocLanguage = 'en'
+  language: DocLanguage | 'auto' = 'en'
 ): Promise<string> {
   const { callLangChain } = await import('../lib/langchain-service');
   
@@ -461,11 +531,17 @@ async function processConversationalRequest(
     .join('\n\n');
   
   // Language-specific instructions
-  const languageInstructions = {
-    en: 'Respond in English. Use clear, professional English.',
-    fr: 'Répondez en français. Utilisez un français clair et professionnel.',
-    de: 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch.'
-  };
+  let languageInstruction = '';
+  if (language === 'en') {
+    languageInstruction = 'Respond in English. Use clear, professional English.';
+  } else if (language === 'fr') {
+    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel.';
+  } else if (language === 'de') {
+    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch.';
+  } else {
+    // For any other language or 'auto', instruct AI to detect and respond in the same language
+    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. Use clear, professional language in whatever language the user is using.';
+  }
   
   const systemPrompt = `You are a helpful AI assistant that helps users understand and discuss their documentation. You can:
 - Answer questions about the documentation
@@ -476,7 +552,7 @@ async function processConversationalRequest(
 
 IMPORTANT: You are having a CONVERSATION. Do NOT edit or modify the documentation unless the user explicitly asks you to edit it. Just discuss, explain, and provide helpful information.
 
-${languageInstructions[language]}
+${languageInstruction}
 
 Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.
 
@@ -533,20 +609,26 @@ async function processDocumentationEditRequest(
   currentDocumentation: string,
   model: string = 'gpt-4o-mini',
   t?: (key: TranslationKey) => string,
-  language: DocLanguage = 'en'
+  language: DocLanguage | 'auto' = 'en'
 ): Promise<{ message: string; updatedDocumentation?: string }> {
   const { callLangChain } = await import('../lib/langchain-service');
   
   // Language-specific instructions
-  const languageInstructions = {
-    en: 'Respond in English. Use clear, professional English. When explaining changes, write in English.',
-    fr: 'Répondez en français. Utilisez un français clair et professionnel. Lorsque vous expliquez les modifications, écrivez en français.',
-    de: 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch. Wenn Sie Änderungen erklären, schreiben Sie auf Deutsch.'
-  };
+  let languageInstruction = '';
+  if (language === 'en') {
+    languageInstruction = 'Respond in English. Use clear, professional English. When explaining changes, write in English.';
+  } else if (language === 'fr') {
+    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel. Lorsque vous expliquez les modifications, écrivez en français.';
+  } else if (language === 'de') {
+    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch. Wenn Sie Änderungen erklären, schreiben Sie auf Deutsch.';
+  } else {
+    // For any other language or 'auto', instruct AI to detect and respond in the same language
+    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. When explaining changes, use clear, professional language in whatever language the user is using.';
+  }
   
   const systemPrompt = `You are a helpful AI assistant specialized in editing and improving documentation. Your role is to help users edit, improve, and refine their documentation text.
 
-${languageInstructions[language]}
+${languageInstruction}
 
 YOUR CAPABILITIES:
 - Rewrite sections for better clarity
