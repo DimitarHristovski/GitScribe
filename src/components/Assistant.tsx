@@ -16,12 +16,17 @@ export default function Assistant({
 }: AssistantProps) {
   // Get language from localStorage and react to changes
   const [selectedLanguage, setSelectedLanguage] = useState<DocLanguage>(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    return (saved as DocLanguage) || 'en';
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = window.localStorage.getItem('selectedLanguage');
+      return (saved as DocLanguage) || 'en';
+    }
+    return 'en';
   });
 
   // Listen for language changes in localStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'selectedLanguage' && e.newValue) {
         setSelectedLanguage(e.newValue as DocLanguage);
@@ -33,9 +38,11 @@ export default function Assistant({
 
     // Listen for custom language change events (for same-tab changes)
     const handleLanguageChange = () => {
-      const saved = localStorage.getItem('selectedLanguage');
-      if (saved && saved !== selectedLanguage) {
-        setSelectedLanguage(saved as DocLanguage);
+      if (window.localStorage) {
+        const saved = window.localStorage.getItem('selectedLanguage');
+        if (saved && saved !== selectedLanguage) {
+          setSelectedLanguage(saved as DocLanguage);
+        }
       }
     };
 
@@ -43,9 +50,11 @@ export default function Assistant({
 
     // Check on window focus (when user switches back to tab)
     const handleFocus = () => {
-      const saved = localStorage.getItem('selectedLanguage');
-      if (saved && saved !== selectedLanguage) {
-        setSelectedLanguage(saved as DocLanguage);
+      if (window.localStorage) {
+        const saved = window.localStorage.getItem('selectedLanguage');
+        if (saved && saved !== selectedLanguage) {
+          setSelectedLanguage(saved as DocLanguage);
+        }
       }
     };
 
@@ -84,7 +93,9 @@ export default function Assistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof window !== 'undefined' && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleSend = async () => {
@@ -101,12 +112,10 @@ export default function Assistant({
         // Determine if this is an edit request or just a conversation
         const isEditRequest = isDocumentationEditRequest(userMessage);
         
-        // Detect the language of the user's message
-        const detectedLanguage = detectMessageLanguage(userMessage);
-        
+        // Always respond in English
         if (isEditRequest) {
           // User explicitly wants to edit - process the edit
-        const response = await processDocumentationEditRequest(userMessage, documentation, model, t, detectedLanguage);
+        const response = await processDocumentationEditRequest(userMessage, documentation, model, t, selectedLanguage);
         
         if (response.updatedDocumentation) {
           onUpdateDocumentation(response.updatedDocumentation);
@@ -119,18 +128,27 @@ export default function Assistant({
         }]);
         } else {
           // User wants to chat about the documentation - have a conversation
-          const response = await processConversationalRequest(userMessage, documentation, model, t, messages, detectedLanguage);
+          // But also allow the assistant to modify documentation if it makes sense
+          const response = await processConversationalRequest(userMessage, documentation, model, t, messages, selectedLanguage);
+          
+          // Check if the response contains updated documentation
+          const docMatch = response.match(/<documentation>([\s\S]*?)<\/documentation>/);
+          if (docMatch && onUpdateDocumentation) {
+            const updatedDoc = docMatch[1].trim();
+            if (updatedDoc && updatedDoc.length > 10 && updatedDoc !== documentation) {
+              onUpdateDocumentation(updatedDoc);
+            }
+          }
+          
+          // Remove documentation tags from the message if present
+          const cleanResponse = response.replace(/<documentation>[\s\S]*?<\/documentation>/g, '').trim();
           
           setMessages((prev) => [...prev, { 
             role: 'assistant', 
-            content: response, 
+            content: cleanResponse || response, 
             timestamp: Date.now() 
           }]);
         }
-        setLoading(false);
-        return;
-        setLoading(false);
-        return;
       }
       
       // If no documentation mode, show error
@@ -389,73 +407,6 @@ export default function Assistant({
 }
 
 /**
- * Detect the language of a user message
- * Returns a language code or 'auto' to let the AI detect it
- */
-function detectMessageLanguage(message: string): DocLanguage | 'auto' {
-  const lowerMessage = message.toLowerCase();
-  
-  // French indicators
-  const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'ou', 'pour', 'avec', 'sans', 'est', 'sont', 'être', 'avoir', 'faire', 'aller', 'vous', 'nous', 'ils', 'elles', 'c\'est', 'qu\'', 'd\'', 'l\'', 'n\''];
-  const frenchChars = /[éèêëàâçùûüôö]/;
-  const frenchPatterns = /(qu'|d'|l'|n'|c'est)/i;
-  
-  // German indicators
-  const germanWords = ['der', 'die', 'das', 'und', 'oder', 'für', 'mit', 'ohne', 'ist', 'sind', 'sein', 'haben', 'machen', 'gehen', 'sie', 'wir', 'ein', 'eine', 'einen'];
-  const germanChars = /[äöüß]/;
-  const germanPatterns = /(der|die|das|ein|eine|einen)\s/i;
-  
-  // Count matches
-  let frenchScore = 0;
-  let germanScore = 0;
-  
-  // Check for French words
-  frenchWords.forEach(word => {
-    if (lowerMessage.includes(word)) {
-      frenchScore += 1;
-    }
-  });
-  
-  // Check for French characters
-  if (frenchChars.test(message)) {
-    frenchScore += 3;
-  }
-  
-  // Check for French patterns
-  if (frenchPatterns.test(message)) {
-    frenchScore += 2;
-  }
-  
-  // Check for German words
-  germanWords.forEach(word => {
-    if (lowerMessage.includes(word)) {
-      germanScore += 1;
-    }
-  });
-  
-  // Check for German characters
-  if (germanChars.test(message)) {
-    germanScore += 3;
-  }
-  
-  // Check for German patterns
-  if (germanPatterns.test(message)) {
-    germanScore += 2;
-  }
-  
-  // Determine language based on scores
-  if (frenchScore > germanScore && frenchScore >= 2) {
-    return 'fr';
-  } else if (germanScore > frenchScore && germanScore >= 2) {
-    return 'de';
-  }
-  
-  // If no clear match, return 'auto' to let AI detect the language
-  // This allows support for any language
-  return 'auto';
-}
-
-/**
  * Determine if a message is an explicit edit request or just conversational
  */
 function isDocumentationEditRequest(message: string): boolean {
@@ -467,7 +418,8 @@ function isDocumentationEditRequest(message: string): boolean {
     'add', 'remove', 'delete', 'insert', 'replace', 'improve', 'enhance',
     'make it', 'make the', 'change the', 'update the', 'edit the',
     'should be', 'needs to be', 'must be', 'please add', 'please remove',
-    'can you add', 'can you remove', 'can you change', 'can you edit'
+    'can you add', 'can you remove', 'can you change', 'can you edit',
+    'translate', 'translation', 'convert to', 'transform', 'reformat', 'restructure'
   ];
   
   // Check if message contains edit keywords
@@ -480,7 +432,12 @@ function isDocumentationEditRequest(message: string): boolean {
                     lowerMessage.startsWith('add') ||
                     lowerMessage.startsWith('remove') ||
                     lowerMessage.startsWith('fix') ||
-                    lowerMessage.startsWith('rewrite');
+                    lowerMessage.startsWith('rewrite') ||
+                    lowerMessage.startsWith('translate') ||
+                    lowerMessage.startsWith('convert') ||
+                    lowerMessage.startsWith('transform') ||
+                    lowerMessage.startsWith('reformat') ||
+                    lowerMessage.startsWith('restructure');
   
   // If it's a question, it's conversational
   const isQuestion = lowerMessage.trim().endsWith('?') || 
@@ -520,8 +477,20 @@ async function processConversationalRequest(
   model: string = 'gpt-4o-mini',
   t?: (key: TranslationKey) => string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: number }> = [],
-  language: DocLanguage | 'auto' = 'en'
+  language: DocLanguage = 'en'
 ): Promise<string> {
+  // Check if this might be a request that needs documentation changes
+  const mightNeedChanges = request.toLowerCase().includes('fix') ||
+                          request.toLowerCase().includes('improve') ||
+                          request.toLowerCase().includes('change') ||
+                          request.toLowerCase().includes('update') ||
+                          request.toLowerCase().includes('add') ||
+                          request.toLowerCase().includes('remove') ||
+                          request.toLowerCase().includes('translate') ||
+                          request.toLowerCase().includes('edit');
+  
+  // Use higher token limit if changes might be needed
+  const maxTokens = mightNeedChanges ? 16384 : 2048;
   const { callLangChain } = await import('../lib/langchain-service');
   
   // Build conversation context
@@ -530,36 +499,35 @@ async function processConversationalRequest(
     .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
     .join('\n\n');
   
-  // Language-specific instructions
-  let languageInstruction = '';
-  if (language === 'en') {
-    languageInstruction = 'Respond in English. Use clear, professional English.';
-  } else if (language === 'fr') {
-    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel.';
-  } else if (language === 'de') {
-    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch.';
-  } else {
-    // For any other language or 'auto', instruct AI to detect and respond in the same language
-    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. Use clear, professional language in whatever language the user is using.';
-  }
+  // Language-specific response instructions
+  const languageInstructions = {
+    en: 'Respond in English. Use clear, professional English for all responses.',
+    fr: 'Répondez en français. Utilisez un français clair et professionnel pour toutes les réponses.',
+    de: 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch für toutes les réponses.'
+  };
+
+  const languageInstruction = languageInstructions[language] || languageInstructions.en;
   
-  const systemPrompt = `You are a helpful AI assistant that helps users understand and discuss their documentation. You can:
+  const systemPrompt = `You are a helpful AI assistant with FULL ACCESS to edit and modify documentation. You can:
 - Answer questions about the documentation
 - Explain sections or concepts
 - Provide suggestions and recommendations
 - Discuss the documentation content
 - Help users understand what's in their documentation
+- Edit, translate, or manipulate the documentation when requested or when it would be helpful
+- Proactively improve the documentation when you notice issues
 
-IMPORTANT: You are having a CONVERSATION. Do NOT edit or modify the documentation unless the user explicitly asks you to edit it. Just discuss, explain, and provide helpful information.
+IMPORTANT: You have FULL ACCESS to modify the documentation. If the user asks for changes, suggests improvements, or you notice something that should be fixed, you can and should update the documentation.
 
 ${languageInstruction}
 
-Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.
+Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for changes or improvements, make those changes directly.
 
 HELPFUL HINTS TO SHARE:
-- When appropriate, mention that users can edit the documentation by using commands like: "edit", "change", "update", "add", "remove", "fix", "rewrite", "improve", "enhance"
-- Mention that they can use phrases like: "edit the...", "change the...", "add a section about...", "remove the...", "fix the grammar", "update the..."
+- When appropriate, mention that users can edit the documentation by using commands like: "edit", "change", "update", "add", "remove", "fix", "rewrite", "improve", "enhance", "translate"
+- Mention that they can use phrases like: "edit the...", "change the...", "add a section about...", "remove the...", "fix the grammar", "update the...", "translate to French", "translate the introduction to Spanish", etc.
 - Let users know that questions and casual chat won't trigger edits - only explicit edit commands will modify the documentation
+- Inform users about translation capabilities: "translate to [language]", "translate the [section] to [language]", "translate entire documentation to [language]"
 - Be helpful and guide users on how to use the assistant effectively`;
 
   const prompt = `The user is having a conversation about their documentation. Here's the conversation so far:
@@ -568,19 +536,28 @@ ${conversationContext ? `Previous conversation:\n${conversationContext}\n\n` : '
 
 User's current message: "${request}"
 
-Current documentation (for reference - you can discuss it but don't edit unless explicitly asked):
+Current documentation (you have FULL ACCESS to edit this):
 \`\`\`
-${currentDocumentation.substring(0, 3000)}${currentDocumentation.length > 3000 ? '\n\n[... documentation continues ...]' : ''}
+${currentDocumentation}
 \`\`\`
 
-Please respond conversationally to the user's message. If they're asking about the documentation, help them understand it. If they're asking for suggestions, provide helpful recommendations. Be friendly and helpful, but remember: you're just chatting, not editing unless they explicitly ask you to edit.
+Please respond conversationally to the user's message. 
 
-IMPORTANT: When appropriate (especially in your first response or when the user seems unsure), helpfully mention:
-- "💡 Tip: To edit the documentation, use commands like: 'edit', 'change', 'update', 'add', 'remove', 'fix', 'rewrite', 'improve', or 'enhance'"
-- "You can say things like: 'edit the introduction', 'add a section about X', 'fix the grammar', 'update the API docs', etc."
-- "Questions and casual chat won't modify your documentation - only explicit edit commands will make changes"
+IF THE USER ASKS FOR CHANGES, IMPROVEMENTS, OR EDITS:
+- Make the changes directly to the documentation
+- Return the updated documentation in this format:
+  <documentation>
+  [Complete updated documentation here]
+  </documentation>
+- Explain what you changed in your response
 
-Be natural and conversational, but include these helpful hints when it makes sense in the conversation.`;
+IF THE USER IS JUST ASKING QUESTIONS:
+- Answer their questions helpfully
+- You can still suggest improvements and offer to make them
+
+You have FULL ACCESS to modify the documentation. If the user wants changes, make them. If you notice something that should be improved and the user seems open to suggestions, you can proactively improve it.
+
+Be natural, conversational, and helpful.`;
 
   try {
     const response = await callLangChain(
@@ -590,7 +567,7 @@ Be natural and conversational, but include these helpful hints when it makes sen
       0.7,
       undefined, // No repoName - we're not using RAG
       false, // Don't use RAG for conversation
-      2048 // Reasonable max tokens for conversation
+      maxTokens // Higher limit if changes might be needed
     );
     
     return response.trim();
@@ -609,28 +586,27 @@ async function processDocumentationEditRequest(
   currentDocumentation: string,
   model: string = 'gpt-4o-mini',
   t?: (key: TranslationKey) => string,
-  language: DocLanguage | 'auto' = 'en'
+  language: DocLanguage = 'en'
 ): Promise<{ message: string; updatedDocumentation?: string }> {
   const { callLangChain } = await import('../lib/langchain-service');
   
-  // Language-specific instructions
-  let languageInstruction = '';
-  if (language === 'en') {
-    languageInstruction = 'Respond in English. Use clear, professional English. When explaining changes, write in English.';
-  } else if (language === 'fr') {
-    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel. Lorsque vous expliquez les modifications, écrivez en français.';
-  } else if (language === 'de') {
-    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch. Wenn Sie Änderungen erklären, schreiben Sie auf Deutsch.';
-  } else {
-    // For any other language or 'auto', instruct AI to detect and respond in the same language
-    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. When explaining changes, use clear, professional language in whatever language the user is using.';
-  }
+  // Language-specific response instructions
+  const languageInstructions = {
+    en: 'Respond in English. Use clear, professional English for all responses. When explaining changes, write in English.',
+    fr: 'Répondez en français. Utilisez un français clair et professionnel pour toutes les réponses. Lorsque vous expliquez les modifications, écrivez en français.',
+    de: 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch für toutes les réponses. Wenn Sie Änderungen erklären, schreiben Sie auf Deutsch.'
+  };
+
+  const languageInstruction = languageInstructions[language] || languageInstructions.en;
   
-  const systemPrompt = `You are a helpful AI assistant specialized in editing and improving documentation. Your role is to help users edit, improve, and refine their documentation text.
+  const systemPrompt = `You are a helpful AI assistant with FULL ACCESS to edit, improve, and manipulate documentation text. Your role is to help users edit, translate, and transform their documentation. You have COMPLETE CONTROL over the documentation and can make any changes needed.
 
 ${languageInstruction}
 
+FULL ACCESS: You can modify any part of the documentation - add sections, remove content, rewrite text, translate, restructure, reformat, or make any other changes. There are no restrictions on what you can change.
+
 YOUR CAPABILITIES:
+- Translate documentation or sections to any language (French, German, Spanish, Italian, Japanese, Chinese, Arabic, etc.)
 - Rewrite sections for better clarity
 - Improve grammar, spelling, and style
 - Add missing information
@@ -638,15 +614,31 @@ YOUR CAPABILITIES:
 - Restructure documentation for better flow
 - Format text properly
 - Make content more professional and readable
+- Convert between different text formats
+- Summarize or expand content
+- Change tone or style (formal, casual, technical, etc.)
+- Extract specific information
+- Combine or split sections
+
+TRANSLATION CAPABILITIES:
+- When the user asks to translate, you MUST ACTUALLY TRANSLATE the entire documentation or specified sections to the requested language
+- DO NOT just say you translated it - YOU MUST PROVIDE THE TRANSLATED TEXT in the <documentation> section
+- Translate ALL descriptive text content to the target language
+- Maintain all markdown formatting during translation (headers, lists, code blocks, etc.)
+- Preserve code blocks, file paths, URLs, and technical terms unchanged (only translate descriptive text)
+- Keep the structure and organization intact
+- Translate accurately while maintaining the original meaning
+- The output MUST be in the target language, not the original language
 
 YOUR APPROACH:
-- Preserve the original structure and meaning
+- Preserve the original structure and meaning (unless restructuring is requested)
 - Make improvements while keeping the user's intent
 - Be clear about what changes you made
 - Maintain markdown formatting
-- Keep technical accuracy`;
+- Keep technical accuracy
+- For translations, ensure natural, fluent language in the target language`;
 
-  const prompt = `The user wants to edit their documentation. Here's their request:
+  const prompt = `The user wants to edit, translate, or manipulate their documentation. Here's their request:
 
 "${request}"
 
@@ -655,24 +647,42 @@ Current documentation:
 ${currentDocumentation}
 \`\`\`
 
-Please:
-1. Understand what the user wants to change
-2. Edit the documentation accordingly
-3. Return the complete updated documentation
-4. Explain briefly what you changed
+CRITICAL INSTRUCTIONS:
+1. Understand what the user wants to do (edit, translate, reformat, restructure, etc.)
+2. If it's a translation request:
+   - Identify the target language from the request (e.g., "translate to French" = French, "translate to Spanish" = Spanish)
+   - ACTUALLY TRANSLATE the entire documentation or the specified sections - DO NOT just say you translated it, YOU MUST PROVIDE THE TRANSLATED TEXT
+   - Translate ALL text content to the target language
+   - Maintain all markdown formatting, code blocks, and structure exactly as they are
+   - Keep code blocks, file paths, URLs, and technical terms unchanged (only translate descriptive text)
+   - Ensure natural, fluent translation in the target language
+   - The <documentation> section MUST contain the ACTUAL TRANSLATED TEXT, not the original
+3. If it's an edit request (not translation):
+   - Make the requested changes
+   - Preserve structure and formatting
+4. Return the complete updated documentation with ALL changes applied
+5. Explain briefly what you changed
+
+IMPORTANT: When translating, you MUST provide the actual translated content in the <documentation> section. Do not just copy the original text - translate it to the requested language.
 
 Return your response in this format:
 <explanation>
-Brief explanation of what you changed
+Brief explanation of what you changed (e.g., "Translated the entire documentation to French" or "Improved grammar and clarity in the introduction section")
 </explanation>
 
 <documentation>
-[Complete updated documentation here]
+[Complete updated documentation here - MUST be translated if translation was requested]
 </documentation>`;
 
   try {
+    // Check if this is a translation request
+    const isTranslationRequest = request.toLowerCase().includes('translate') || 
+                                 request.toLowerCase().includes('translation');
+    
+    // Use higher maxTokens for translations (they need more space)
+    const maxTokens = isTranslationRequest ? 16384 : 4096;
+    
     // Call LangChain without RAG (we're editing documentation, not analyzing code)
-    // Use reasonable maxTokens for documentation editing (4096 should be enough)
     const response = await callLangChain(
       prompt, 
       systemPrompt, 
@@ -680,7 +690,7 @@ Brief explanation of what you changed
       0.7,
       undefined, // No repoName - we're not using RAG
       false, // Don't use RAG for documentation editing
-      4096 // Reasonable max tokens for editing
+      maxTokens // Higher limit for translations
     );
     
     // Extract explanation and documentation
@@ -688,7 +698,29 @@ Brief explanation of what you changed
     const docMatch = response.match(/<documentation>([\s\S]*?)<\/documentation>/);
     
     const explanation = explanationMatch ? explanationMatch[1].trim() : 'I\'ve updated your documentation.';
-    const updatedDoc = docMatch ? docMatch[1].trim() : currentDocumentation;
+    let updatedDoc = docMatch ? docMatch[1].trim() : currentDocumentation;
+    
+    // If the response doesn't contain the documentation tags, try to extract it from the full response
+    // Sometimes the AI might not follow the exact format
+    if (!docMatch && response.length > 100) {
+      // Check if the response might be the documentation itself
+      const hasExplanation = explanationMatch !== null;
+      if (!hasExplanation) {
+        // If no explanation found, the whole response might be the documentation
+        updatedDoc = response.trim();
+      } else {
+        // Try to find documentation after the explanation
+        const afterExplanation = response.split('</explanation>')[1];
+        if (afterExplanation) {
+          updatedDoc = afterExplanation.replace(/<documentation>/g, '').replace(/<\/documentation>/g, '').trim();
+        }
+      }
+    }
+    
+    // Fallback to original if we couldn't extract anything meaningful
+    if (!updatedDoc || updatedDoc.length < 10) {
+      updatedDoc = currentDocumentation;
+    }
 
   return {
       message: explanation,

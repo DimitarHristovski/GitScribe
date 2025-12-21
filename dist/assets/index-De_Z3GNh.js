@@ -1037,7 +1037,7 @@ Complete Directory Structure:
 ${c}\`\`\`
 `:"",h={en:"English",fr:"French",de:"German"},m=i!=="en"?`
 
-IMPORTANT: Generate all content in ${h[i]}. All text, descriptions, and explanations must be in ${h[i]}.`:"";let f="";switch(t){case"README":f=`Generate a comprehensive README.md for the repository "${o}" in Cursor-style documentation format.
+IMPORTANT: Generate all content in ${h[i]}. All text, descriptions, and explanations must be in ${h[i]}.`:"";let f="";switch(t){case"README":f=`Generate a comprehensive README.md for the repository "${o}" in Ai-Style documentation format.
 ${m}
 
 ${l?`
@@ -1078,7 +1078,7 @@ Create an EXTENSIVE, COMPREHENSIVE README that includes (be thorough and detaile
 
 IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thorough, detailed, and comprehensive. Include multiple examples, detailed explanations, and complete information. Do not be brief - provide comprehensive documentation similar to major open-source projects.
 
-Style: Write in a Cursor-like style - code-focused, practical, with real examples from the codebase. Include extensive code snippets that show actual usage patterns. Make it developer-friendly and actionable.`;break;case"ARCHITECTURE":f=`Generate an Architecture documentation section for "${o}" in Cursor-style format.
+Style: Write in a Cursor-like style - code-focused, practical, with real examples from the codebase. Include extensive code snippets that show actual usage patterns. Make it developer-friendly and actionable.`;break;case"ARCHITECTURE":f=`Generate an Architecture documentation section for "${o}" in Ai-Style format.
 ${m}
 
 ${l?`
@@ -1099,7 +1099,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Architecture content
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE Architecture document in Ai-Style that includes (be thorough and detailed):
 
 1. **System Overview** - Detailed high-level architecture description with diagrams descriptions, design decisions, and code references
 2. **Component Structure** - Complete breakdown of ALL major components/modules with:
@@ -1151,7 +1151,7 @@ IMPORTANT: Use the complete directory structure provided in the context above. S
 
 IMPORTANT: Generate EXTENSIVE documentation - aim for 4000-6000+ words. Be thorough, detailed, and comprehensive. Document everything - don't leave anything out. Include extensive code examples and detailed explanations.
 
-Style: Code-first approach like Cursor AI. Show actual code structures, class hierarchies, and function relationships. Include extensive code examples that demonstrate the architecture.`;break;case"API":f=`Generate an API Reference documentation for "${o}" in Cursor-style format.
+Style: Code-first approach like Cursor AI. Show actual code structures, class hierarchies, and function relationships. Include extensive code examples that demonstrate the architecture.`;break;case"API":f=`Generate an API Reference documentation for "${o}" in Ai-Style format.
 ${m}
 
 ${l?`
@@ -1172,7 +1172,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE API Reference conten
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE API Reference in Ai-Style that includes (be thorough and detailed):
 
 1. **API Overview** - Comprehensive introduction to the API including:
    - Purpose and use cases
@@ -1228,7 +1228,7 @@ Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (
 
 IMPORTANT: Generate EXTENSIVE documentation - aim for 5000-8000+ words. Document EVERY function, class, interface, and type. Be thorough, detailed, and comprehensive. Include extensive examples and detailed explanations. Do not skip any API elements.
 
-Style: Generate documentation similar to Cursor AI - include the actual code with inline documentation comments. Show complete function signatures, detailed parameter types, return types, and extensive practical examples. Make it code-first and developer-friendly.`;break;case"COMPONENTS":f=`Generate a Components documentation section for "${o}" in Cursor-style format.
+Style: Generate documentation similar to Cursor AI - include the actual code with inline documentation comments. Show complete function signatures, detailed parameter types, return types, and extensive practical examples. Make it code-first and developer-friendly.`;break;case"COMPONENTS":f=`Generate a Components documentation section for "${o}" in Ai-Style format.
 ${m}
 
 ${l?`
@@ -1249,7 +1249,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Components content. 
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE Components document in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE Components document in Ai-Style that includes (be thorough and detailed):
 
 1. **Component Overview** - Comprehensive introduction to the component system including:
    - Architecture and design patterns

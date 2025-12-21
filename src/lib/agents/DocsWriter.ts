@@ -293,7 +293,7 @@ async function generateSectionSpecificContent(
     ragContext = await retrieveContext(
       `Generate ${sectionType} documentation for ${repoFullName}`,
       repoFullName,
-      20 // Increased to 20 chunks for comprehensive Cursor-style documentation with extensive code examples
+      20 // Increased to 20 chunks for comprehensive Ai-Style documentation with extensive code examples
     );
   } catch (error) {
     console.warn(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);
@@ -612,7 +612,7 @@ Style: Write in a professional, comprehensive style EXACTLY like the DOCUMENTATI
       break;
       
     case 'ARCHITECTURE':
-      sectionPrompt = `Generate an Architecture documentation section for "${repoFullName}" in Cursor-style format.
+      sectionPrompt = `Generate an Architecture documentation section for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
 ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
@@ -628,7 +628,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Architecture content
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE Architecture document in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE Architecture document in Ai-Style that includes (be thorough and detailed):
 
 1. **System Overview** - Detailed high-level architecture description with diagrams descriptions, design decisions, and code references
 2. **Component Structure** - Complete breakdown of ALL major components/modules with:
@@ -698,7 +698,7 @@ Style: Code-first approach like Cursor AI. Show actual code structures, class hi
       break;
       
     case 'API':
-      sectionPrompt = `Generate an API Reference documentation for "${repoFullName}" in Cursor-style format.
+      sectionPrompt = `Generate an API Reference documentation for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
 ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
@@ -714,7 +714,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE API Reference conten
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE API Reference in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE API Reference in Ai-Style that includes (be thorough and detailed):
 
 1. **API Overview** - Comprehensive introduction to the API including:
    - Purpose and use cases
@@ -788,7 +788,7 @@ Style: Generate documentation similar to Cursor AI - include the actual code wit
       break;
       
     case 'COMPONENTS':
-      sectionPrompt = `Generate a Components documentation section for "${repoFullName}" in Cursor-style format.
+      sectionPrompt = `Generate a Components documentation section for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
 ${ragContext ? `\nRelevant Code Context:\n${ragContext}\n` : ''}
@@ -804,7 +804,7 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Components content. 
 - Create comprehensive content that goes FAR BEYOND the reference documentation
 - Use the reference only to understand the project's purpose, not to copy content
 
-Create an EXTENSIVE, COMPREHENSIVE Components document in Cursor-style that includes (be thorough and detailed):
+Create an EXTENSIVE, COMPREHENSIVE Components document in Ai-Style that includes (be thorough and detailed):
 
 1. **Component Overview** - Comprehensive introduction to the component system including:
    - Architecture and design patterns
@@ -1112,7 +1112,7 @@ Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Qu
       sectionPrompt,
       systemPrompt,
       modelToUse, // Use the user's selected model
-      0.2, // Lower temperature for more consistent, detailed output (same as cursor-style-docs)
+      0.2, // Lower temperature for more consistent, detailed output (same as Ai-Style-docs)
       repoFullName,
       true, // Use RAG
       maxTokens // Use calculated max tokens based on model
