@@ -645,6 +645,44 @@ export async function fetchUserRepos(options?: {
 }
 
 /**
+ * Fetch all branches for a repository
+ */
+export async function fetchRepositoryBranches(
+  owner: string,
+  repo: string,
+  token?: string
+): Promise<string[]> {
+  try {
+    const githubToken = token || getGitHubToken();
+    const headers = createGitHubHeaders(githubToken);
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/branches`;
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Repository not found');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid or insufficient permissions. Please check your GitHub token.');
+      }
+      throw new Error(`Failed to fetch branches: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.map((branch: any) => branch.name).sort((a: string, b: string) => {
+      // Sort with 'main' and 'master' first
+      if (a === 'main' || a === 'master') return -1;
+      if (b === 'main' || b === 'master') return 1;
+      return a.localeCompare(b);
+    });
+  } catch (error: any) {
+    console.error('Error fetching repository branches:', error);
+    throw new Error(`Failed to fetch branches: ${error.message || 'Unknown error'}`);
+  }
+}
+
+/**
  * Get the SHA of a file in a repository (required for updating files)
  */
 export async function getFileSha(

@@ -1178,7 +1178,7 @@ DO NOT just add filler text. Expand meaningfully with real, useful content. The 
           
           if (expandedWordCount >= minWordsForValidation) {
             return expandedContent;
-          } else {
+    } else {
             console.warn(`[DocsWriter] Expansion still insufficient (${expandedWordCount} < ${minWordsForValidation}), returning original`);
           }
         } catch (expandError) {

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, ArrowUp, Clock, TrendingUp, Activity, Layers, Pencil, Save, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, FileText, Github, X, Download, Sparkles, Link as LinkIcon, BarChart3, Cpu, Code, FolderOpen, GitCommit, DollarSign, Hash, BookOpen, Settings, Zap, CheckCircle2, MessageSquare, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Clock, TrendingUp, Activity, Layers, Pencil, Save, CheckCircle, Minimize2, Maximize2 } from 'lucide-react';
 import Assistant from '../components/Assistant';
 import MultiRepoSelector from '../components/MultiRepoSelector';
 import AgentWorkflow from '../components/AgentWorkflow';
 import Footer from '../components/Footer';
 import { exportDocumentation } from '../lib/documentation-writer';
-import { setGitHubToken as saveGitHubToken, getGitHubToken, SimpleRepo, createOrUpdateFile } from '../lib/github-service';
+import { setGitHubToken as saveGitHubToken, getGitHubToken, SimpleRepo, createOrUpdateFile, fetchRepositoryBranches } from '../lib/github-service';
 import { setOpenAIApiKey, getOpenAIApiKey } from '../lib/langchain-service';
 import { DocOutputFormat, DocSectionType, GeneratedDocs, DocLanguage } from '../types/core';
 import { useTranslation } from '../lib/translations';
@@ -14,18 +15,138 @@ interface DocumentationEditorProps {
   onBack: () => void;
 }
 
+// Tooltip component that renders outside the DOM hierarchy to avoid overflow clipping
+function TooltipWrapper({ children, content }: { children: React.ReactElement; content: React.ReactNode }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [position, setPosition] = useState({ top: 0, right: 0 });
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = () => {
+    if (elementRef.current) {
+      const rect = elementRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top + rect.height / 2,
+        right: window.innerWidth - rect.left + 8
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isHovered) {
+      updatePosition();
+      const handleScroll = () => updatePosition();
+      const handleResize = () => updatePosition();
+      window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('scroll', handleScroll, true);
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, [isHovered]);
+
+  return (
+    <>
+      <div
+        ref={elementRef}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative"
+      >
+        {children}
+      </div>
+      {isHovered && createPortal(
+        <div
+          className="fixed z-[9999] pointer-events-none transition-opacity duration-200"
+          style={{
+            top: `${position.top}px`,
+            right: `${position.right}px`,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          <div className="bg-white text-gray-900 text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-200 whitespace-nowrap">
+            {content}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export default function DocumentationEditor({ onBack }: DocumentationEditorProps) {
-  const [documentation, setDocumentation] = useState<string>('');
-  const [repoDocumentations, setRepoDocumentations] = useState<Map<string, string>>(new Map());
-  const [repoDocumentationsFull, setRepoDocumentationsFull] = useState<Map<string, GeneratedDocs>>(new Map());
+  // Load from localStorage on mount
+  const loadFromStorage = () => {
+    try {
+      const savedDoc = localStorage.getItem('gitScribe_documentation');
+      const savedRepoDocs = localStorage.getItem('gitScribe_repoDocumentations');
+      const savedRepoDocsFull = localStorage.getItem('gitScribe_repoDocumentationsFull');
+      const savedSelectedRepos = localStorage.getItem('gitScribe_selectedRepos');
+      const savedModel = localStorage.getItem('gitScribe_modelUsedForGeneration');
+      const savedActiveTab = localStorage.getItem('gitScribe_activeTab');
+
+      let repoDocumentations = new Map<string, string>();
+      if (savedRepoDocs) {
+        try {
+          repoDocumentations = new Map(JSON.parse(savedRepoDocs));
+        } catch (e) {
+          console.error('Error parsing repoDocumentations:', e);
+        }
+      }
+
+      let repoDocumentationsFull = new Map<string, GeneratedDocs>();
+      if (savedRepoDocsFull) {
+        try {
+          const parsed = JSON.parse(savedRepoDocsFull);
+          repoDocumentationsFull = new Map(parsed.map(([k, v]: [string, any]) => [k, v as GeneratedDocs]));
+        } catch (e) {
+          console.error('Error parsing repoDocumentationsFull:', e);
+        }
+      }
+
+      let selectedRepos: SimpleRepo[] = [];
+      if (savedSelectedRepos) {
+        try {
+          selectedRepos = JSON.parse(savedSelectedRepos);
+        } catch (e) {
+          console.error('Error parsing selectedRepos:', e);
+        }
+      }
+
+      return {
+        documentation: savedDoc || '',
+        repoDocumentations,
+        repoDocumentationsFull,
+        selectedRepos,
+        modelUsedForGeneration: savedModel || '',
+        activeTab: savedActiveTab || 'combined'
+      };
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+      return {
+        documentation: '',
+        repoDocumentations: new Map(),
+        repoDocumentationsFull: new Map(),
+        selectedRepos: [],
+        modelUsedForGeneration: '',
+        activeTab: 'combined'
+      };
+    }
+  };
+
+  const initialData = loadFromStorage();
+
+  const [documentation, setDocumentation] = useState<string>(initialData.documentation);
+  const [repoDocumentations, setRepoDocumentations] = useState<Map<string, string>>(initialData.repoDocumentations);
+  const [repoDocumentationsFull, setRepoDocumentationsFull] = useState<Map<string, GeneratedDocs>>(initialData.repoDocumentationsFull);
   const [selectedFormat, setSelectedFormat] = useState<DocOutputFormat>('markdown');
   const [selectedSectionType, setSelectedSectionType] = useState<DocSectionType>('README');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string>('');
-  const [selectedRepos, setSelectedRepos] = useState<SimpleRepo[]>([]);
+  const [selectedRepos, setSelectedRepos] = useState<SimpleRepo[]>(initialData.selectedRepos);
   const [showRepoSelector, setShowRepoSelector] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
-  const [modelUsedForGeneration, setModelUsedForGeneration] = useState<string>('');
+  const [modelUsedForGeneration, setModelUsedForGeneration] = useState<string>(initialData.modelUsedForGeneration);
   const [githubToken, setGithubToken] = useState<string>(getGitHubToken() || '');
   const [tokenSaved, setTokenSaved] = useState(false);
   const [openAIApiKey, setOpenAIApiKeyState] = useState<string>(getOpenAIApiKey() || '');
@@ -38,12 +159,16 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   const [showCommitDialog, setShowCommitDialog] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [commitBranch, setCommitBranch] = useState('main');
-  const [activeTab, setActiveTab] = useState<string>('combined');
-  const [showSettings, setShowSettings] = useState(false);
+  const [availableBranches, setAvailableBranches] = useState<string[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [branchError, setBranchError] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>(initialData.activeTab);
   const [showAssistant, setShowAssistant] = useState<boolean>(false);
   const [showSourceSelection, setShowSourceSelection] = useState<boolean>(true);
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
+  const [isRightSidebarMinimized, setIsRightSidebarMinimized] = useState<boolean>(false);
   const [showScrollToTop, setShowScrollToTop] = useState<boolean>(false);
+  const [isAtTop, setIsAtTop] = useState<boolean>(true);
   const [showAgentWorkflowModal, setShowAgentWorkflowModal] = useState<boolean>(false);
   const [showFormatSectionModal, setShowFormatSectionModal] = useState<boolean>(false);
   const [showRemoveRepoConfirm, setShowRemoveRepoConfirm] = useState<boolean>(false);
@@ -69,6 +194,127 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
     window.dispatchEvent(new Event('languageChanged'));
   }, [selectedLanguage]);
 
+  // Save documentation state to localStorage
+  useEffect(() => {
+    try {
+      if (documentation) {
+        localStorage.setItem('gitScribe_documentation', documentation);
+      } else {
+        // Clear if documentation is empty
+        localStorage.removeItem('gitScribe_documentation');
+      }
+    } catch (error) {
+      console.error('Error saving documentation to localStorage:', error);
+    }
+  }, [documentation]);
+
+  // Save repoDocumentations to localStorage
+  useEffect(() => {
+    try {
+      if (repoDocumentations.size > 0) {
+        const serialized = JSON.stringify(Array.from(repoDocumentations.entries()));
+        localStorage.setItem('gitScribe_repoDocumentations', serialized);
+      } else {
+        localStorage.removeItem('gitScribe_repoDocumentations');
+      }
+    } catch (error) {
+      console.error('Error saving repoDocumentations to localStorage:', error);
+    }
+  }, [repoDocumentations]);
+
+  // Save repoDocumentationsFull to localStorage
+  useEffect(() => {
+    try {
+      if (repoDocumentationsFull.size > 0) {
+        const serialized = JSON.stringify(Array.from(repoDocumentationsFull.entries()));
+        localStorage.setItem('gitScribe_repoDocumentationsFull', serialized);
+      } else {
+        localStorage.removeItem('gitScribe_repoDocumentationsFull');
+      }
+    } catch (error) {
+      console.error('Error saving repoDocumentationsFull to localStorage:', error);
+    }
+  }, [repoDocumentationsFull]);
+
+  // Save selectedRepos to localStorage
+  useEffect(() => {
+    try {
+      if (selectedRepos.length > 0) {
+        localStorage.setItem('gitScribe_selectedRepos', JSON.stringify(selectedRepos));
+      } else {
+        localStorage.removeItem('gitScribe_selectedRepos');
+      }
+    } catch (error) {
+      console.error('Error saving selectedRepos to localStorage:', error);
+    }
+  }, [selectedRepos]);
+
+  // Save modelUsedForGeneration to localStorage
+  useEffect(() => {
+    try {
+      if (modelUsedForGeneration) {
+        localStorage.setItem('gitScribe_modelUsedForGeneration', modelUsedForGeneration);
+      } else {
+        localStorage.removeItem('gitScribe_modelUsedForGeneration');
+      }
+    } catch (error) {
+      console.error('Error saving modelUsedForGeneration to localStorage:', error);
+    }
+  }, [modelUsedForGeneration]);
+
+  // Save activeTab to localStorage
+  useEffect(() => {
+    try {
+      if (activeTab) {
+        localStorage.setItem('gitScribe_activeTab', activeTab);
+      }
+    } catch (error) {
+      console.error('Error saving activeTab to localStorage:', error);
+    }
+  }, [activeTab]);
+
+  // Fetch branches when commit dialog opens
+  useEffect(() => {
+    if (showCommitDialog && selectedRepos.length > 0) {
+      const fetchBranches = async () => {
+        setLoadingBranches(true);
+        setBranchError('');
+        try {
+          // Use the first selected repo to fetch branches
+          // If multiple repos, we'll use the first one's branches
+          const firstRepo = selectedRepos[0];
+          const branches = await fetchRepositoryBranches(
+            firstRepo.owner,
+            firstRepo.name,
+            getGitHubToken() || undefined
+          );
+
+          setAvailableBranches(branches);
+
+          // Set default branch if available
+          if (branches.length > 0) {
+            const defaultBranch = firstRepo.defaultBranch || 'main';
+            if (branches.includes(defaultBranch)) {
+              setCommitBranch(defaultBranch);
+            } else {
+              setCommitBranch(branches[0]);
+            }
+          }
+        } catch (error: any) {
+          console.error('Error fetching branches:', error);
+          setBranchError(error.message || 'Failed to fetch branches');
+          // Fallback to default branch
+          setAvailableBranches([]);
+          setCommitBranch(selectedRepos[0]?.defaultBranch || 'main');
+        } finally {
+          setLoadingBranches(false);
+        }
+      };
+
+      fetchBranches();
+    }
+  }, [showCommitDialog, selectedRepos]);
+
   // Hide assistant when documentation is cleared
   useEffect(() => {
     if (!documentation && showAssistant) {
@@ -80,22 +326,35 @@ export default function DocumentationEditor({ onBack }: DocumentationEditorProps
   const t = useTranslation(selectedLanguage);
 
 
-  // Scroll to top button visibility
+  // Scroll to top/bottom button visibility
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY || document.documentElement.scrollTop;
-      setShowScrollToTop(scrollPosition > 300);
+      const isNearTop = scrollPosition < 1500;
+      
+      setShowScrollToTop(scrollPosition > 1500 || isNearTop);
+      setIsAtTop(isNearTop || scrollPosition === 0);
     };
 
     window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial position
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToTop = () => {
+  const scrollToTopOrBottom = () => {
+    if (isAtTop) {
+      // Scroll to bottom
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth',
+      });
+    } else {
+      // Scroll to top
     window.scrollTo({
       top: 0,
       behavior: 'smooth',
     });
+    }
   };
 
 
@@ -434,11 +693,11 @@ ${documentation.split('\n').map(line => {
     'gpt-4o-mini': { input: 0.15, output: 0.60 },
     'gpt-4o': { input: 2.50, output: 10.00 },
     'gpt-4o-2024-08-06': { input: 2.50, output: 10.00 },
-    'gpt-4-turbo': { input: 10.00, output: 30.00  },
-    'gpt-4-turbo-preview': { input: 10.00, output: 30.00  },
-    'gpt-4': { input: 30.00, output: 60.00  },
-    'gpt-3.5-turbo': { input: 0.50, output: 1.50   },
-    'o1-preview': { input: 15.00, output: 60.00   },
+    'gpt-4-turbo': { input: 10.00, output: 30.00 },
+    'gpt-4-turbo-preview': { input: 10.00, output: 30.00 },
+    'gpt-4': { input: 30.00, output: 60.00 },
+    'gpt-3.5-turbo': { input: 0.50, output: 1.50 },
+    'o1-preview': { input: 15.00, output: 60.00 },
     'o1-mini': { input: 3.00, output: 12.00 },
     'gpt-5.2': { input: 5.00, output: 15.00 },
     'gpt-5-codex': { input: 8.00, output: 24.00 },
@@ -453,7 +712,7 @@ ${documentation.split('\n').map(line => {
     : 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-red-50/30">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-red-50/30" style={{ overflowX: 'visible' }}>
       {/* Beautiful Header with Glassmorphism */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-black/5 flex-shrink-0 sticky top-0 z-50">
         <div className="px-4 md:px-6 lg:px-8 py-3 md:py-4 lg:py-5">
@@ -506,30 +765,13 @@ ${documentation.split('\n').map(line => {
                   <span className="absolute -top-1 -right-1 w-2 md:w-2.5 h-2 md:h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse"></span>
                 )}
               </button>
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className="hidden md:flex p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md"
-              >
-                <Settings className="w-4 h-4 md:w-5 md:h-5 text-slate-600" />
-              </button>
-              {/* Mobile: Actions & Settings Toggle */}
-              <button
-                onClick={() => setShowRightSidebar(!showRightSidebar)}
-                className="md:hidden p-2.5 hover:bg-gradient-to-br hover:from-orange-50 hover:to-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md relative"
-                aria-label="Toggle actions and settings"
-              >
-                <BarChart3 className={`w-5 h-5 transition-colors ${showRightSidebar ? 'text-orange-600' : 'text-slate-600'}`} />
-                {showRightSidebar && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse"></span>
-                )}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="flex-1 flex min-h-0 relative" style={{ overflow: 'visible' }}>
         {/* Left Sidebar - Assistant with Beautiful Design (Desktop) */}
         {showAssistant && (
           <>
@@ -570,7 +812,7 @@ ${documentation.split('\n').map(line => {
         )}
 
         {/* Center - Source Selection & Documentation */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-orange-50/20 to-red-50/20">
+        <main className="flex-1 flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/20 to-red-50/20" style={{ overflowX: 'visible' }}>
           {/* Compact Source Selection Section */}
           <div className="bg-white/40 backdrop-blur-xl border-b border-white/30 shadow-lg shadow-black/5 flex-shrink-0">
             {/* Header with Toggle */}
@@ -603,8 +845,7 @@ ${documentation.split('\n').map(line => {
             </div>
             
             {/* Collapsible Content */}
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              showSourceSelection ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showSourceSelection ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
             }`}>
               <div className="p-3 md:p-4">
                 <div className="max-w-4xl mx-auto">
@@ -787,8 +1028,7 @@ ${documentation.split('\n').map(line => {
                               setActiveTab(repo.fullName);
                               updateDocumentationDisplay(repo.fullName, selectedFormat, selectedSectionType);
                             }}
-                            className={`px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 text-xs md:text-sm font-bold border-b-2 transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 md:gap-2 rounded-t-lg md:rounded-t-xl ${
-                              isActive
+                            className={`px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 text-xs md:text-sm font-bold border-b-2 transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 md:gap-2 rounded-t-lg md:rounded-t-xl ${isActive
                                 ? 'border-orange-500 text-orange-600 bg-gradient-to-b from-orange-50 to-white shadow-lg'
                                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                             }`}
@@ -825,8 +1065,7 @@ ${documentation.split('\n').map(line => {
                                 updateDocumentationDisplay(currentRepo, format, selectedSectionType);
                               }
                             }}
-                            className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${
-                              selectedFormat === format
+                              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${selectedFormat === format
                                 ? 'bg-orange-600 text-white shadow-sm'
                                 : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-md hover:scale-105 cursor-pointer'
                             }`}
@@ -860,8 +1099,7 @@ ${documentation.split('\n').map(line => {
                                 updateDocumentationDisplay(currentRepo, selectedFormat, sectionType);
                               }
                             }}
-                            className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${
-                              selectedSectionType === sectionType
+                              className={`px-2 py-1 text-[10px] font-semibold rounded-md transition-all whitespace-nowrap ${selectedSectionType === sectionType
                                 ? 'bg-orange-600 text-white shadow-sm'
                                 : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-md hover:scale-105 cursor-pointer'
                             }`}
@@ -997,14 +1235,6 @@ ${documentation.split('\n').map(line => {
               {/* Header */}
               <div className="flex items-center justify-between px-6 pb-4 border-b border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900">Actions & Settings</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Toggle statistics"
-                  >
-                    <Settings className={`w-5 h-5 transition-colors ${showSettings ? 'text-orange-600' : 'text-gray-600'}`} />
-                  </button>
                   <button
                     onClick={() => setShowRightSidebar(false)}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1012,7 +1242,6 @@ ${documentation.split('\n').map(line => {
                   >
                     <X className="w-5 h-5 text-gray-600" />
                   </button>
-                </div>
               </div>
               
               {/* Content */}
@@ -1020,7 +1249,7 @@ ${documentation.split('\n').map(line => {
             <div className="p-4 md:p-5 lg:p-6">
             {/* Action Buttons */}
             <div className="space-y-4 mb-8">
-              {/* Run Workflow Button */}
+                    {/* Generate Button */}
               <button
                 onClick={() => {
                   const repos = getReposForWorkflow();
@@ -1041,7 +1270,7 @@ ${documentation.split('\n').map(line => {
                 className="w-full flex items-center justify-center gap-2 md:gap-3 px-4 md:px-4 lg:px-5 py-3.5 md:py-3.5 lg:py-4 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 text-white rounded-xl md:rounded-2xl hover:from-red-700 hover:via-orange-700 hover:to-red-700 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm md:text-base shadow-2xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.02] disabled:hover:scale-100 transform touch-manipulation"
               >
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="truncate">{t('runWorkflow')}</span>
+                      <span className="truncate">{t('generate')}</span>
               </button>
               
               {documentation && (
@@ -1080,8 +1309,7 @@ ${documentation.split('\n').map(line => {
               )}
             </div>
 
-            {/* Statistics Card - Beautiful Design */}
-            {showSettings && (
+                  {/* Statistics Card - Beautiful Design - Always Visible */}
             <div className="bg-gradient-to-br from-white/90 to-orange-50/50 backdrop-blur-sm rounded-xl md:rounded-2xl border border-white/50 p-4 md:p-5 lg:p-6 shadow-xl shadow-orange-500/10">
               <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-5">
                 <div className="p-2 md:p-2.5 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-md">
@@ -1094,7 +1322,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <FileText className="w-3.5 h-3.5" />
-                    <span>Length</span>
+                          <span>{t('length')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     {documentation ? `${documentation.length.toLocaleString()}` : '0'}
@@ -1106,7 +1334,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Cpu className="w-3.5 h-3.5" />
-                      <span>Model Used</span>
+                            <span>{t('modelUsed')}</span>
                     </div>
                     <span className="font-bold text-gray-900 text-[10px] truncate max-w-[120px]" title={modelUsedForGeneration}>
                       {modelUsedForGeneration.replace('gpt-', '').replace(/-/g, ' ').toUpperCase()}
@@ -1118,7 +1346,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <BarChart3 className="w-3.5 h-3.5" />
-                    <span>Est. Tokens</span>
+                          <span>{t('estTokens')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     {estimatedTokens > 1000 
@@ -1132,7 +1360,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                       <DollarSign className="w-3.5 h-3.5" />
-                      <span>Est. Cost</span>
+                            <span>{t('estCost')}</span>
                   </div>
                     <span className="font-bold text-green-600">
                       ${estimatedCost < 0.01 ? '<0.01' : estimatedCost.toFixed(4)}
@@ -1145,7 +1373,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <BookOpen className="w-3.5 h-3.5" />
-                      <span>Words</span>
+                            <span>{t('words')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {wordCount.toLocaleString()}
@@ -1158,7 +1386,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Hash className="w-3.5 h-3.5" />
-                      <span>Lines</span>
+                            <span>{t('lines')}</span>
               </div>
                     <span className="font-bold text-gray-900">
                       {lineCount.toLocaleString()}
@@ -1171,7 +1399,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Code className="w-3.5 h-3.5" />
-                      <span>Characters</span>
+                            <span>{t('characters')}</span>
                   </div>
                     <span className="font-bold text-gray-900">
                       {charCount.toLocaleString()}
@@ -1184,7 +1412,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <FileText className="w-3.5 h-3.5" />
-                      <span>File Size</span>
+                            <span>{t('fileSize')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {fileSizeKB} KB
@@ -1197,10 +1425,10 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Reading Time</span>
+                            <span>{t('readingTime')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
-                      ~{readingTimeMinutes} min
+                            ~{readingTimeMinutes} {t('minUnit')}
                     </span>
                   </div>
                 )}
@@ -1210,7 +1438,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <TrendingUp className="w-3.5 h-3.5" />
-                      <span>Avg Words/Line</span>
+                            <span>{t('avgWordsPerLine')}</span>
               </div>
                     <span className="font-bold text-gray-900">
                       {avgWordsPerLine}
@@ -1223,7 +1451,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Layers className="w-3.5 h-3.5" />
-                      <span>Sections</span>
+                            <span>{t('sections')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {sectionsCount}
@@ -1236,7 +1464,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Hash className="w-3.5 h-3.5" />
-                      <span>Headers</span>
+                            <span>{t('headers')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {headersCount}
@@ -1249,7 +1477,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Code className="w-3.5 h-3.5" />
-                      <span>Code Blocks</span>
+                            <span>{t('codeBlocks')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {codeBlocksCount}
@@ -1262,7 +1490,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <LinkIcon className="w-3.5 h-3.5" />
-                      <span>Links</span>
+                            <span>{t('links')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {linksCount}
@@ -1276,7 +1504,7 @@ ${documentation.split('\n').map(line => {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Activity className="w-3.5 h-3.5" />
-                        <span>Input Tokens</span>
+                              <span>{t('inputTokens')}</span>
                       </div>
                       <span className="font-bold text-gray-900">
                         {estimatedInputTokens.toLocaleString()}
@@ -1285,7 +1513,7 @@ ${documentation.split('\n').map(line => {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Activity className="w-3.5 h-3.5" />
-                        <span>Output Tokens</span>
+                              <span>{t('outputTokens')}</span>
                       </div>
                       <span className="font-bold text-gray-900">
                         {estimatedOutputTokens.toLocaleString()}
@@ -1299,7 +1527,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <FolderOpen className="w-3.5 h-3.5" />
-                      <span>Repositories</span>
+                            <span>{t('repositories')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {selectedRepos.length}
@@ -1311,7 +1539,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Code className="w-3.5 h-3.5" />
-                    <span>Source</span>
+                          <span>{t('source')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     GitHub
@@ -1320,19 +1548,315 @@ ${documentation.split('\n').map(line => {
 
               </div>
             </div>
-            )}
                 </div>
               </div>
             </aside>
           </div>
         )}
         
-        {/* Desktop: Right Sidebar - Always Visible */}
-        <aside className="hidden md:block w-64 md:w-72 lg:w-80 bg-white/70 backdrop-blur-xl border-l border-white/30 shadow-2xl shadow-black/5 overflow-y-auto flex-shrink-0">
-            <div className="p-4 md:p-5 lg:p-6">
+        {/* Desktop: Right Sidebar - Always Visible with Minimize/Maximize */}
+        <aside className={`hidden md:flex flex-col bg-white/70 backdrop-blur-xl border-l border-white/30 shadow-2xl shadow-black/5 flex-shrink-0 relative transition-all duration-300 ease-in-out ${isRightSidebarMinimized ? 'w-16' : 'w-64 md:w-72 lg:w-80'
+          }`}>
+          {isRightSidebarMinimized ? (
+            /* Minimized View - Statistics Icons + Action Buttons */
+            <div className="flex flex-col items-center py-2 space-y-3 h-full scrollbar-thin overflow-y-auto">
+              {/* Minimize/Maximize Toggle Button - Part of the bar */}
+              <button
+                onClick={() => setIsRightSidebarMinimized(!isRightSidebarMinimized)}
+                className="absolute top-1 right-10 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-white hover:shadow-lg transition-all duration-200 border border-gray-200/50 hover:border-orange-300 group"
+                aria-label="Maximize sidebar"
+                title="Maximize sidebar"
+              >
+                <Maximize2 className="w-4 h-4 text-orange-600 group-hover:text-orange-700 transition-colors mx-auto" />
+              </button>
+              <div className="w-full h-px bg-gray-0 my-2 "></div>
+
+              {/* Action Buttons - Icon Only */}
+              <div className="w-full space-y-2 px-2">
+                {/* Run Workflow Button */}
+                <button
+                  onClick={() => {
+                    const repos = getReposForWorkflow();
+                    if (repos.length === 0) {
+                      setError(t('selectAtLeastOneRepo'));
+                      return;
+                    }
+                    setTempSelectedFormats(selectedOutputFormats.length > 0 ? selectedOutputFormats : ['markdown']);
+                    setTempSelectedSections(selectedSectionTypes.length > 0 ? selectedSectionTypes : ['README']);
+                    setShowFormatSectionModal(true);
+                  }}
+                  disabled={generating || selectedRepos.length === 0}
+                  className="w-full p-3 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 text-white rounded-lg hover:from-red-700 hover:via-orange-700 hover:to-red-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-500/40 hover:shadow-xl hover:shadow-orange-500/50"
+                  title={t('generate')}
+                >
+                  <Sparkles className="w-5 h-5 mx-auto" />
+                </button>
+
+                {documentation && (
+                  <>
+                    {(isEditing || hasUnsavedChanges) && (
+                      <button
+                        onClick={handleSaveDocumentation}
+                        className="w-full p-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40"
+                        title={t('saveChanges')}
+                      >
+                        <Save className="w-5 h-5 mx-auto" />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleExport}
+                      disabled={isEditing}
+                      className="w-full p-3 bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-lg hover:from-slate-800 hover:to-black transition-all duration-300 shadow-lg shadow-slate-500/30 hover:shadow-xl hover:shadow-slate-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={t('export')}
+                    >
+                      <Download className="w-5 h-5 mx-auto" />
+                    </button>
+
+                    {selectedRepos.length > 0 && (
+                      <button
+                        onClick={() => setShowCommitDialog(true)}
+                        disabled={isEditing}
+                        className="w-full p-3 bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 text-white rounded-lg hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg shadow-green-500/40 hover:shadow-xl hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={t('commitToRepos')}
+                      >
+                        <GitCommit className="w-5 h-5 mx-auto" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="w-full h-px bg-gray-200 my-2"></div>
+              {documentation ? (
+                <>
+                  {/* Model Used */}
+                  {modelUsedForGeneration && (
+                    <TooltipWrapper
+                      content={
+                        <>
+                          <div className="font-bold mb-1 text-gray-900">{t('modelUsed')}</div>
+                          <div className="text-gray-700">{modelUsedForGeneration}</div>
+                          <div className="text-gray-500 text-[10px] mt-1">{t('cost')}: ${estimatedCost < 0.01 ? '<0.01' : estimatedCost.toFixed(4)}</div>
+                        </>
+                      }
+                    >
+                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg hover:from-pink-100 hover:to-pink-200 transition-all cursor-default">
+                        <Cpu className="w-4 h-4 text-pink-600 mb-1" />
+                        <span className="text-[8px] font-bold text-pink-700 text-center leading-tight px-0.5">
+                          {modelUsedForGeneration.replace('gpt-', '').replace(/-/g, ' ').substring(0, 4).toUpperCase()}
+                        </span>
+                      </div>
+                    </TooltipWrapper>
+                  )}
+                  {/* Word Count */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('wordCount')}</div>
+                        <div className="text-gray-700">{wordCount.toLocaleString()} {t('wordsUnit')}</div>
+                        <div className="text-gray-500 text-[10px] mt-1">{t('avg')}: {avgWordsPerLine} {t('wordsPerLine')}</div>
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg hover:from-blue-100 hover:to-blue-200 transition-all cursor-default">
+                      <BookOpen className="w-4 h-4 text-blue-600 mb-1" />
+                      <span className="text-[9px] font-bold text-blue-700 text-center leading-tight">
+                        {wordCount > 1000 ? `${(wordCount / 1000).toFixed(1)}K` : wordCount}
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+
+                  {/* Character Count */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('characterCount')}</div>
+                        <div className="text-gray-700">{charCount.toLocaleString()} {t('charactersUnit')}</div>
+                        <div className="text-gray-500 text-[10px] mt-1">{t('fileSizeLabel')}: {fileSizeKB} KB</div>
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg hover:from-purple-100 hover:to-purple-200 transition-all cursor-default">
+                      <Code className="w-4 h-4 text-purple-600 mb-1" />
+                      <span className="text-[9px] font-bold text-purple-700 text-center leading-tight">
+                        {charCount > 1000 ? `${(charCount / 1000).toFixed(1)}K` : charCount}
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+                  {/* Estimated Tokens */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('estimatedTokens')}</div>
+                        <div className="text-gray-700">{estimatedTokens.toLocaleString()} {t('tokensUnit')}</div>
+                        {documentation && (
+                          <>
+                            <div className="text-gray-500 text-[10px] mt-1">{t('input')}: {estimatedInputTokens.toLocaleString()}</div>
+                            <div className="text-gray-500 text-[10px]">{t('output')}: {estimatedOutputTokens.toLocaleString()}</div>
+                          </>
+                        )}
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg hover:from-orange-100 hover:to-orange-200 transition-all cursor-default">
+                      <BarChart3 className="w-4 h-4 text-orange-600 mb-1" />
+                      <span className="text-[9px] font-bold text-orange-700 text-center leading-tight">
+                        {estimatedTokens > 1000 ? `${(estimatedTokens / 1000).toFixed(1)}K` : estimatedTokens}
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+                  {/* File Size */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('fileSize')}</div>
+                        <div className="text-gray-700">{fileSizeKB} KB ({charCount.toLocaleString()} {t('bytesUnit')})</div>
+                        <div className="text-gray-500 text-[10px] mt-1">{t('lengthLabel')}: {documentation.length.toLocaleString()} {t('charsUnit')}</div>
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg hover:from-slate-100 hover:to-slate-200 transition-all cursor-default">
+                      <FileText className="w-4 h-4 text-slate-600 mb-1" />
+                      <span className="text-[9px] font-bold text-slate-700 text-center leading-tight">
+                        {fileSizeKB}KB
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+                  {/* Line Count */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('lineCount')}</div>
+                        <div className="text-gray-700">{lineCount.toLocaleString()} {t('lines')}</div>
+                        {readingTimeMinutes > 0 && (
+                          <div className="text-gray-500 text-[10px] mt-1">{t('readingTime')}: ~{readingTimeMinutes} {t('minUnit')}</div>
+                        )}
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-lg hover:from-green-100 hover:to-green-200 transition-all cursor-default">
+                      <Hash className="w-4 h-4 text-green-600 mb-1" />
+                      <span className="text-[9px] font-bold text-green-700 text-center leading-tight">
+                        {lineCount > 1000 ? `${(lineCount / 1000).toFixed(1)}K` : lineCount}
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+
+
+                  {/* Estimated Cost */}
+                  <TooltipWrapper
+                    content={
+                      <>
+                        <div className="font-bold mb-1 text-gray-900">{t('estCost')}</div>
+                        <div className="text-gray-700">${estimatedCost < 0.01 ? '<0.01' : estimatedCost.toFixed(4)}</div>
+                        {modelUsedForGeneration && (
+                          <div className="text-gray-500 text-[10px] mt-1">{t('modelUsed')}: {modelUsedForGeneration}</div>
+                        )}
+                      </>
+                    }
+                  >
+                    <div className="flex flex-col items-center p-2 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg hover:from-emerald-100 hover:to-emerald-200 transition-all cursor-default">
+                      <DollarSign className="w-4 h-4 text-emerald-600 mb-1" />
+                      <span className="text-[9px] font-bold text-emerald-700 text-center leading-tight">
+                        ${estimatedCost < 0.01 ? '<0.01' : estimatedCost.toFixed(2)}
+                      </span>
+                    </div>
+                  </TooltipWrapper>
+
+
+
+                  {/* Reading Time */}
+                  {readingTimeMinutes > 0 && (
+                    <TooltipWrapper
+                      content={
+                        <>
+                          <div className="font-bold mb-1 text-gray-900">{t('readingTime')}</div>
+                          <div className="text-gray-700">~{readingTimeMinutes} {t('minUnit')}</div>
+                          <div className="text-gray-500 text-[10px] mt-1">{t('words')}: {wordCount.toLocaleString()}</div>
+                        </>
+                      }
+                    >
+                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg hover:from-cyan-100 hover:to-cyan-200 transition-all cursor-default">
+                        <Clock className="w-4 h-4 text-cyan-600 mb-1" />
+                        <span className="text-[9px] font-bold text-cyan-700 text-center leading-tight">
+                          {readingTimeMinutes}m
+                        </span>
+                      </div>
+                    </TooltipWrapper>
+                  )}
+
+                  {/* Sections Count */}
+                  {sectionsCount > 0 && (
+                    <TooltipWrapper
+                      content={
+                        <>
+                          <div className="font-bold mb-1 text-gray-900">{t('sections')}</div>
+                          <div className="text-gray-700">{sectionsCount} {t('sections')}</div>
+                          {headersCount > 0 && (
+                            <div className="text-gray-500 text-[10px] mt-1">{t('headers')}: {headersCount}</div>
+                          )}
+                        </>
+                      }
+                    >
+                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg hover:from-indigo-100 hover:to-indigo-200 transition-all cursor-default">
+                        <Layers className="w-4 h-4 text-indigo-600 mb-1" />
+                        <span className="text-[9px] font-bold text-indigo-700 text-center leading-tight">
+                          {sectionsCount}
+                        </span>
+                      </div>
+                    </TooltipWrapper>
+                  )}
+
+
+
+                  {/* Repositories Count */}
+                  {selectedRepos.length > 0 && (
+                    <TooltipWrapper
+                      content={
+                        <>
+                          <div className="font-bold mb-1 text-gray-900">{t('repositories')}</div>
+                          <div className="text-gray-700">{selectedRepos.length} {t('repositories')}</div>
+                          <div className="text-gray-500 text-[10px] mt-1">
+                            {selectedRepos.slice(0, 3).map(r => r.name).join(', ')}
+                            {selectedRepos.length > 3 && '...'}
+                          </div>
+                        </>
+                      }
+                    >
+                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg hover:from-teal-100 hover:to-teal-200 transition-all cursor-default">
+                        <FolderOpen className="w-4 h-4 text-teal-600 mb-1" />
+                        <span className="text-[9px] font-bold text-teal-700 text-center leading-tight">
+                          {selectedRepos.length}
+                        </span>
+                      </div>
+                    </TooltipWrapper>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 text-gray-400">
+                  <BarChart3 className="w-6 h-6 mb-2 opacity-50" />
+                  <span className="text-[10px] text-center">No stats</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Maximized View - Full Content */
+            <div className="flex flex-col h-full overflow-hidden relative">
+              {/* Minimize/Maximize Toggle - Positioned absolutely */}
+              <button
+                onClick={() => setIsRightSidebarMinimized(!isRightSidebarMinimized)}
+                className="absolute top-3 right-3 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-white hover:shadow-lg transition-all duration-200 border border-gray-200/50 hover:border-orange-300 group"
+                aria-label="Minimize sidebar"
+                title="Minimize sidebar"
+              >
+                <Minimize2 className="w-4 h-4 text-gray-600 group-hover:text-orange-600 transition-colors" />
+              </button>
+
+              <div className="flex-1 overflow-y-auto scrollbar-thin p-4 md:p-5 lg:p-6">
             {/* Action Buttons */}
             <div className="space-y-4 mb-8">
-              {/* Run Workflow Button */}
+                  {/* Generate Button */}
               <button
                 onClick={() => {
                   const repos = getReposForWorkflow();
@@ -1352,7 +1876,7 @@ ${documentation.split('\n').map(line => {
                 className="w-full flex items-center justify-center gap-2 md:gap-3 px-4 md:px-4 lg:px-5 py-3.5 md:py-3.5 lg:py-4 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 text-white rounded-xl md:rounded-2xl hover:from-red-700 hover:via-orange-700 hover:to-red-700 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm md:text-base shadow-2xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.02] disabled:hover:scale-100 transform touch-manipulation"
               >
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="truncate">{t('runWorkflow')}</span>
+                    <span className="truncate">{t('generate')}</span>
               </button>
               
               {documentation && (
@@ -1391,8 +1915,7 @@ ${documentation.split('\n').map(line => {
               )}
             </div>
 
-            {/* Statistics Card - Beautiful Design */}
-            {showSettings && (
+                {/* Statistics Card - Beautiful Design - Always Visible */}
             <div className="bg-gradient-to-br from-white/90 to-orange-50/50 backdrop-blur-sm rounded-xl md:rounded-2xl border border-white/50 p-4 md:p-5 lg:p-6 shadow-xl shadow-orange-500/10">
               <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-5">
                 <div className="p-2 md:p-2.5 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-md">
@@ -1405,7 +1928,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <FileText className="w-3.5 h-3.5" />
-                    <span>Length</span>
+                        <span>{t('length')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     {documentation ? `${documentation.length.toLocaleString()}` : '0'}
@@ -1417,7 +1940,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Cpu className="w-3.5 h-3.5" />
-                      <span>Model Used</span>
+                          <span>{t('modelUsed')}</span>
                     </div>
                     <span className="font-bold text-gray-900 text-[10px] truncate max-w-[120px]" title={modelUsedForGeneration}>
                       {modelUsedForGeneration.replace('gpt-', '').replace(/-/g, ' ').toUpperCase()}
@@ -1429,7 +1952,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <BarChart3 className="w-3.5 h-3.5" />
-                    <span>Est. Tokens</span>
+                        <span>{t('estTokens')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     {estimatedTokens > 1000 
@@ -1443,7 +1966,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                       <DollarSign className="w-3.5 h-3.5" />
-                      <span>Est. Cost</span>
+                          <span>{t('estCost')}</span>
                   </div>
                     <span className="font-bold text-green-600">
                       ${estimatedCost < 0.01 ? '<0.01' : estimatedCost.toFixed(4)}
@@ -1456,7 +1979,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <BookOpen className="w-3.5 h-3.5" />
-                      <span>Words</span>
+                          <span>{t('words')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {wordCount.toLocaleString()}
@@ -1469,7 +1992,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Hash className="w-3.5 h-3.5" />
-                      <span>Lines</span>
+                          <span>{t('lines')}</span>
               </div>
                     <span className="font-bold text-gray-900">
                       {lineCount.toLocaleString()}
@@ -1482,7 +2005,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Code className="w-3.5 h-3.5" />
-                      <span>Characters</span>
+                          <span>{t('characters')}</span>
                   </div>
                     <span className="font-bold text-gray-900">
                       {charCount.toLocaleString()}
@@ -1495,7 +2018,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <FileText className="w-3.5 h-3.5" />
-                      <span>File Size</span>
+                          <span>{t('fileSize')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {fileSizeKB} KB
@@ -1508,10 +2031,10 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Reading Time</span>
+                          <span>{t('readingTime')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
-                      ~{readingTimeMinutes} min
+                          ~{readingTimeMinutes} {t('minUnit')}
                     </span>
                   </div>
                 )}
@@ -1521,7 +2044,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <TrendingUp className="w-3.5 h-3.5" />
-                      <span>Avg Words/Line</span>
+                          <span>{t('avgWordsPerLine')}</span>
               </div>
                     <span className="font-bold text-gray-900">
                       {avgWordsPerLine}
@@ -1534,7 +2057,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Layers className="w-3.5 h-3.5" />
-                      <span>Sections</span>
+                          <span>{t('sections')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {sectionsCount}
@@ -1547,7 +2070,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Hash className="w-3.5 h-3.5" />
-                      <span>Headers</span>
+                          <span>{t('headers')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {headersCount}
@@ -1560,7 +2083,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Code className="w-3.5 h-3.5" />
-                      <span>Code Blocks</span>
+                          <span>{t('codeBlocks')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {codeBlocksCount}
@@ -1573,7 +2096,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <LinkIcon className="w-3.5 h-3.5" />
-                      <span>Links</span>
+                          <span>{t('links')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {linksCount}
@@ -1587,7 +2110,7 @@ ${documentation.split('\n').map(line => {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Activity className="w-3.5 h-3.5" />
-                        <span>Input Tokens</span>
+                            <span>{t('inputTokens')}</span>
                       </div>
                       <span className="font-bold text-gray-900">
                         {estimatedInputTokens.toLocaleString()}
@@ -1596,7 +2119,7 @@ ${documentation.split('\n').map(line => {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Activity className="w-3.5 h-3.5" />
-                        <span>Output Tokens</span>
+                            <span>{t('outputTokens')}</span>
                       </div>
                       <span className="font-bold text-gray-900">
                         {estimatedOutputTokens.toLocaleString()}
@@ -1610,7 +2133,7 @@ ${documentation.split('\n').map(line => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-600">
                       <FolderOpen className="w-3.5 h-3.5" />
-                      <span>Repositories</span>
+                          <span>{t('repositories')}</span>
                     </div>
                     <span className="font-bold text-gray-900">
                       {selectedRepos.length}
@@ -1622,7 +2145,7 @@ ${documentation.split('\n').map(line => {
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Code className="w-3.5 h-3.5" />
-                    <span>Source</span>
+                        <span>{t('source')}</span>
                   </div>
                   <span className="font-bold text-gray-900">
                     GitHub
@@ -1631,8 +2154,9 @@ ${documentation.split('\n').map(line => {
 
               </div>
             </div>
-            )}
           </div>
+            </div>
+          )}
         </aside>
       </div>
 
@@ -1849,8 +2373,7 @@ ${documentation.split('\n').map(line => {
                               setTempSelectedFormats([...tempSelectedFormats, format]);
                             }
                           }}
-                          className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold text-sm ${
-                            isSelected
+                          className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold text-sm ${isSelected
                               ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white border-orange-500 shadow-lg shadow-orange-500/30'
                               : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300 hover:bg-orange-50'
                           }`}
@@ -1891,8 +2414,7 @@ ${documentation.split('\n').map(line => {
                               setTempSelectedSections([...tempSelectedSections, sectionType]);
                             }
                           }}
-                          className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold text-sm ${
-                            isSelected
+                          className={`px-4 py-3 rounded-lg border-2 transition-all font-semibold text-sm ${isSelected
                               ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white border-orange-500 shadow-lg shadow-orange-500/30'
                               : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300 hover:bg-orange-50'
                           }`}
@@ -2071,13 +2593,13 @@ ${documentation.split('\n').map(line => {
                     const notificationMessage = repoNames.length === 1
                       ? `Documentation generated successfully for ${repoNames[0]}${hasErrors ? ' (some errors occurred)' : ''}`
                       : `Documentation generated successfully for ${repoNames.length} repositories${hasErrors ? ' (some errors occurred)' : ''}`;
-                    
+
                     setNotification({
                       message: notificationMessage,
                       type: hasErrors ? 'info' : 'success', // Use 'info' if there were errors, 'success' if all good
                       repoName: repoNames.length === 1 ? repoNames[0] : repoNames.join(', '),
                     });
-                    
+
                     // Auto-dismiss notification after 5 seconds (7 seconds if there were errors)
                     setTimeout(() => {
                       setNotification(null);
@@ -2198,7 +2720,31 @@ ${documentation.split('\n').map(line => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   {t('branch')}
+                  {selectedRepos.length > 1 && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (from {selectedRepos[0].fullName})
+                    </span>
+                  )}
                 </label>
+                {loadingBranches ? (
+                  <div className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent"></div>
+                    <span className="text-sm text-gray-600">Loading branches...</span>
+                  </div>
+                ) : availableBranches.length > 0 ? (
+                  <select
+                    value={commitBranch}
+                    onChange={(e) => setCommitBranch(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all bg-white"
+                  >
+                    {availableBranches.map((branch) => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="space-y-2">
                 <input
                   type="text"
                   value={commitBranch}
@@ -2206,6 +2752,14 @@ ${documentation.split('\n').map(line => {
                   placeholder="main"
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 />
+                    {branchError && (
+                      <p className="text-xs text-red-600">{branchError}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Enter branch name manually (branches could not be loaded)
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-gray-600">
                 This will commit <code className="bg-white px-1.5 py-0.5 rounded font-mono text-xs">DOCUMENTATION.md</code> to{' '}
@@ -2217,6 +2771,9 @@ ${documentation.split('\n').map(line => {
                 onClick={() => {
                   setShowCommitDialog(false);
                   setCommitMessage('');
+                  setAvailableBranches([]);
+                  setBranchError('');
+                  setCommitBranch('main');
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
@@ -2388,14 +2945,12 @@ ${documentation.split('\n').map(line => {
 
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 max-w-md w-full animate-in slide-in-from-top-5 transition-all duration-300 ${
-          notification.type === 'success' ? 'bg-green-50 border-green-200' :
+        <div className={`fixed top-4 right-4 z-50 max-w-md w-full animate-in slide-in-from-top-5 transition-all duration-300 ${notification.type === 'success' ? 'bg-green-50 border-green-200' :
           notification.type === 'error' ? 'bg-red-50 border-red-200' :
           'bg-blue-50 border-blue-200'
         } border-2 rounded-xl shadow-2xl p-4 backdrop-blur-sm`}>
           <div className="flex items-start gap-3">
-            <div className={`flex-shrink-0 p-2 rounded-lg ${
-              notification.type === 'success' ? 'bg-green-100' :
+            <div className={`flex-shrink-0 p-2 rounded-lg ${notification.type === 'success' ? 'bg-green-100' :
               notification.type === 'error' ? 'bg-red-100' :
               'bg-blue-100'
             }`}>
@@ -2406,15 +2961,13 @@ ${documentation.split('\n').map(line => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className={`font-bold text-sm ${
-                notification.type === 'success' ? 'text-green-900' :
+              <h4 className={`font-bold text-sm ${notification.type === 'success' ? 'text-green-900' :
                 'text-red-900'
               }`}>
                 {notification.type === 'success' ? 'Documentation Generated' :
                  'Generation Failed'}
               </h4>
-              <p className={`text-xs mt-1 ${
-                notification.type === 'success' ? 'text-green-700' :
+              <p className={`text-xs mt-1 ${notification.type === 'success' ? 'text-green-700' :
                 'text-red-700'
               }`}>
                 {notification.message}
@@ -2438,11 +2991,15 @@ ${documentation.split('\n').map(line => {
       {/* Scroll to Top Button */}
       {showScrollToTop && (
         <button
-          onClick={scrollToTop}
+          onClick={scrollToTopOrBottom}
           className="fixed bottom-8 right-8 z-50 p-4 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-full shadow-2xl shadow-orange-500/50 hover:shadow-orange-500/70 transition-all duration-300 hover:scale-110 active:scale-95 group"
-          aria-label={t('scrollToTop')}
+          aria-label={isAtTop ? t('scrollToBottom') : t('scrollToTop')}
         >
+          {isAtTop ? (
+            <ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform duration-300" />
+          ) : (
           <ArrowUp className="w-6 h-6 group-hover:-translate-y-1 transition-transform duration-300" />
+          )}
         </button>
       )}
     </div>
