@@ -24,6 +24,7 @@ export type TranslationKey =
   | 'editDocumentation'
   | 'editDocumentationPlaceholder'
   | 'runWorkflow'
+  | 'generate'
   | 'startWritingDocumentation'
   | 'generating'
   | 'documentation'
@@ -32,6 +33,40 @@ export type TranslationKey =
   | 'commit'
   | 'settings'
   | 'statistics'
+  | 'length'
+  | 'modelUsed'
+  | 'estTokens'
+  | 'estCost'
+  | 'words'
+  | 'lines'
+  | 'characters'
+  | 'fileSize'
+  | 'readingTime'
+  | 'avgWordsPerLine'
+  | 'headers'
+  | 'codeBlocks'
+  | 'links'
+  | 'inputTokens'
+  | 'outputTokens'
+  | 'repositories'
+  | 'wordCount'
+  | 'lineCount'
+  | 'characterCount'
+  | 'estimatedTokens'
+  | 'cost'
+  | 'avg'
+  | 'wordsPerLine'
+  | 'fileSizeLabel'
+  | 'lengthLabel'
+  | 'input'
+  | 'output'
+  | 'wordsUnit'
+  | 'charactersUnit'
+  | 'tokensUnit'
+  | 'bytesUnit'
+  | 'charsUnit'
+  | 'minUnit'
+  | 'source'
   | 'qualityScores'
   | 'refactorProposals'
   | 'badges'
@@ -239,6 +274,7 @@ export type TranslationKey =
   | 'agentWorkflow'
   | 'automatedPipeline'
   | 'runWorkflow'
+  | 'generate'
   | 'outputFormats'
   | 'sectionTypes'
   | 'pleaseSelectAtLeastOneRepository'
@@ -260,6 +296,7 @@ export type TranslationKey =
   | 'branch'
   | 'commitMessage'
   | 'scrollToTop'
+  | 'scrollToBottom'
   | 'hideAiAssistant'
   | 'showAiAssistant'
   | 'enableAutoUpdate'
@@ -644,6 +681,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     editDocumentation: 'Edit Documentation',
     editDocumentationPlaceholder: 'Edit your documentation here...',
     runWorkflow: 'Run Workflow',
+    generate: 'Generate',
     startWritingDocumentation: 'Start Writing Documentation',
     generating: 'Generating...',
     documentation: 'Documentation',
@@ -652,6 +690,39 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     commit: 'Commit',
     settings: 'Settings',
     statistics: 'Statistics',
+    length: 'Length',
+    modelUsed: 'Model Used',
+    estTokens: 'Est. Tokens',
+    estCost: 'Est. Cost',
+    words: 'Words',
+    lines: 'Lines',
+    characters: 'Characters',
+    fileSize: 'File Size',
+    readingTime: 'Reading Time',
+    avgWordsPerLine: 'Avg Words/Line',
+    headers: 'Headers',
+    codeBlocks: 'Code Blocks',
+    links: 'Links',
+    inputTokens: 'Input Tokens',
+    outputTokens: 'Output Tokens',
+    wordCount: 'Word Count',
+    lineCount: 'Line Count',
+    characterCount: 'Characters',
+    estimatedTokens: 'Estimated Tokens',
+    cost: 'Cost',
+    avg: 'Avg',
+    wordsPerLine: 'words/line',
+    fileSizeLabel: 'File size',
+    lengthLabel: 'Length',
+    input: 'Input',
+    output: 'Output',
+    wordsUnit: 'words',
+    charactersUnit: 'characters',
+    tokensUnit: 'tokens',
+    bytesUnit: 'bytes',
+    charsUnit: 'chars',
+    minUnit: 'min',
+    source: 'Source',
     qualityScores: 'Quality Scores',
     refactorProposals: 'Refactor Proposals',
     badges: 'Badges',
@@ -873,6 +944,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     branch: 'Branch',
     commitMessage: 'Commit Message',
     scrollToTop: 'Scroll to top',
+    scrollToBottom: 'Scroll to bottom',
     hideAiAssistant: 'Hide AI Assistant',
     showAiAssistant: 'Show AI Assistant',
     enableAutoUpdate: 'Enable auto-update on push/merge',
@@ -1251,6 +1323,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     editDocumentation: 'Modifier la Documentation',
     editDocumentationPlaceholder: 'Modifiez votre documentation ici...',
     runWorkflow: 'Exécuter le Workflow',
+    generate: 'Générer',
     startWritingDocumentation: 'Commencer à Écrire la Documentation',
     generating: 'Génération...',
     documentation: 'Documentation',
@@ -1259,6 +1332,39 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     commit: 'Valider',
     settings: 'Paramètres',
     statistics: 'Statistiques',
+    length: 'Longueur',
+    modelUsed: 'Modèle Utilisé',
+    estTokens: 'Tokens Est.',
+    estCost: 'Coût Est.',
+    words: 'Mots',
+    lines: 'Lignes',
+    characters: 'Caractères',
+    fileSize: 'Taille du Fichier',
+    readingTime: 'Temps de Lecture',
+    avgWordsPerLine: 'Mots Moy./Ligne',
+    headers: 'En-têtes',
+    codeBlocks: 'Blocs de Code',
+    links: 'Liens',
+    inputTokens: 'Tokens d\'Entrée',
+    outputTokens: 'Tokens de Sortie',
+    wordCount: 'Nombre de Mots',
+    lineCount: 'Nombre de Lignes',
+    characterCount: 'Caractères',
+    estimatedTokens: 'Tokens Estimés',
+    cost: 'Coût',
+    avg: 'Moy.',
+    wordsPerLine: 'mots/ligne',
+    fileSizeLabel: 'Taille du fichier',
+    lengthLabel: 'Longueur',
+    input: 'Entrée',
+    output: 'Sortie',
+    wordsUnit: 'mots',
+    charactersUnit: 'caractères',
+    tokensUnit: 'tokens',
+    bytesUnit: 'octets',
+    charsUnit: 'caractères',
+    minUnit: 'min',
+    source: 'Source',
     qualityScores: 'Scores de Qualité',
     refactorProposals: 'Propositions de Refactorisation',
     badges: 'Badges',
@@ -1473,13 +1579,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     workflowComplete: 'Workflow Terminé!',
     generatedDocumentationFor: 'Documentation générée pour',
     repository: 'dépôt',
-    repositories: 'dépôts',
+    repositories: 'Dépôts',
     committedTo: 'Committé dans',
     backTo: 'Retour à',
     cancel: 'Annuler',
     branch: 'Branche',
     commitMessage: 'Message de Commit',
     scrollToTop: 'Faire défiler vers le haut',
+    scrollToBottom: 'Faire défiler vers le bas',
     hideAiAssistant: 'Masquer l\'Assistant IA',
     showAiAssistant: 'Afficher l\'Assistant IA',
     enableAutoUpdate: 'Activer la mise à jour automatique lors du push/merge',
@@ -1858,6 +1965,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     editDocumentation: 'Dokumentation Bearbeiten',
     editDocumentationPlaceholder: 'Bearbeiten Sie Ihre Dokumentation hier...',
     runWorkflow: 'Workflow Ausführen',
+    generate: 'Generieren',
     startWritingDocumentation: 'Dokumentation Schreiben Beginnen',
     generating: 'Wird generiert...',
     documentation: 'Dokumentation',
@@ -1866,6 +1974,39 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     commit: 'Übernehmen',
     settings: 'Einstellungen',
     statistics: 'Statistiken',
+    length: 'Länge',
+    modelUsed: 'Verwendetes Modell',
+    estTokens: 'Geschätzte Tokens',
+    estCost: 'Geschätzte Kosten',
+    words: 'Wörter',
+    lines: 'Zeilen',
+    characters: 'Zeichen',
+    fileSize: 'Dateigröße',
+    readingTime: 'Lesezeit',
+    avgWordsPerLine: 'Ø Wörter/Zeile',
+    headers: 'Überschriften',
+    codeBlocks: 'Code-Blöcke',
+    links: 'Links',
+    inputTokens: 'Eingabe-Tokens',
+    outputTokens: 'Ausgabe-Tokens',
+    wordCount: 'Wortanzahl',
+    lineCount: 'Zeilenanzahl',
+    characterCount: 'Zeichen',
+    estimatedTokens: 'Geschätzte Tokens',
+    cost: 'Kosten',
+    avg: 'Ø',
+    wordsPerLine: 'Wörter/Zeile',
+    fileSizeLabel: 'Dateigröße',
+    lengthLabel: 'Länge',
+    input: 'Eingabe',
+    output: 'Ausgabe',
+    wordsUnit: 'Wörter',
+    charactersUnit: 'Zeichen',
+    tokensUnit: 'Tokens',
+    bytesUnit: 'Bytes',
+    charsUnit: 'Zeichen',
+    minUnit: 'Min',
+    source: 'Quelle',
     qualityScores: 'Qualitätsbewertungen',
     refactorProposals: 'Refaktorisierungsvorschläge',
     badges: 'Abzeichen',
@@ -2087,6 +2228,7 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     branch: 'Branch',
     commitMessage: 'Commit-Nachricht',
     scrollToTop: 'Nach oben scrollen',
+    scrollToBottom: 'Nach unten scrollen',
     hideAiAssistant: 'KI-Assistenten ausblenden',
     showAiAssistant: 'KI-Assistenten anzeigen',
     enableAutoUpdate: 'Automatische Aktualisierung bei Push/Merge aktivieren',

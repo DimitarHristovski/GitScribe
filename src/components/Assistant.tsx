@@ -101,9 +101,12 @@ export default function Assistant({
         // Determine if this is an edit request or just a conversation
         const isEditRequest = isDocumentationEditRequest(userMessage);
         
+        // Detect the language of the user's message
+        const detectedLanguage = detectMessageLanguage(userMessage);
+        
         if (isEditRequest) {
           // User explicitly wants to edit - process the edit
-        const response = await processDocumentationEditRequest(userMessage, documentation, model, t);
+        const response = await processDocumentationEditRequest(userMessage, documentation, model, t, detectedLanguage);
         
         if (response.updatedDocumentation) {
           onUpdateDocumentation(response.updatedDocumentation);
@@ -116,7 +119,7 @@ export default function Assistant({
         }]);
         } else {
           // User wants to chat about the documentation - have a conversation
-          const response = await processConversationalRequest(userMessage, documentation, model, t, messages);
+          const response = await processConversationalRequest(userMessage, documentation, model, t, messages, detectedLanguage);
           
           setMessages((prev) => [...prev, { 
             role: 'assistant', 
@@ -240,15 +243,22 @@ export default function Assistant({
               )}
               <div className="text-sm whitespace-pre-wrap leading-relaxed">
                 {msg.content.split('\n').map((line, lineIdx) => {
+                  const isUser = msg.role === 'user';
+                  const textColor = isUser ? 'text-white' : 'text-slate-700';
+                  const textColorLight = isUser ? 'text-white/90' : 'text-slate-600';
+                  const textColorDark = isUser ? 'text-white' : 'text-slate-800';
+                  const textColorBold = isUser ? 'text-white' : 'text-slate-900';
+                  const borderColor = isUser ? 'border-white/20' : 'border-slate-300/50';
+                  
                   // Highlight headers
                   if (line.match(/^#{1,3}\s+/)) {
                     const level = line.match(/^#+/)?.[0].length || 1;
                     const text = line.replace(/^#+\s+/, '');
                     const className = level === 1 
-                      ? 'text-base font-bold mt-3 mb-2 text-slate-800' 
+                      ? `text-base font-bold mt-3 mb-2 ${textColorDark}` 
                       : level === 2 
-                      ? 'text-sm font-semibold mt-2 mb-1 text-slate-700' 
-                      : 'text-sm font-medium mt-1 text-slate-600';
+                      ? `text-sm font-semibold mt-2 mb-1 ${textColor}` 
+                      : `text-sm font-medium mt-1 ${textColorLight}`;
                     return (
                       <div key={lineIdx} className={className}>
                         {text}
@@ -258,8 +268,8 @@ export default function Assistant({
                   // Highlight "Changes Made:" section
                   if (line.includes('📋 **Changes Made:**')) {
                     return (
-                      <div key={lineIdx} className="mt-3 pt-3 border-t border-slate-300/50">
-                        <strong className="font-semibold text-slate-800 flex items-center gap-2">
+                      <div key={lineIdx} className={`mt-3 pt-3 border-t ${borderColor}`}>
+                        <strong className={`font-semibold ${textColorDark} flex items-center gap-2`}>
                           <span>📋</span>
                           <span>{line.replace(/\*\*/g, '')}</span>
                         </strong>
@@ -269,7 +279,7 @@ export default function Assistant({
                   // Style change items with emojis
                   if (line.trim().match(/^(✅|🔄|🎨|🗑️|💡|📊|🚀)/)) {
                     return (
-                      <div key={lineIdx} className="mt-2 font-medium text-slate-700 flex items-start gap-2">
+                      <div key={lineIdx} className={`mt-2 font-medium ${textColor} flex items-start gap-2`}>
                         <span className="text-lg">{line.trim().charAt(0)}</span>
                         <span>{line.trim().substring(1).trim()}</span>
                       </div>
@@ -282,9 +292,9 @@ export default function Assistant({
                       <div key={lineIdx} className="my-1">
                         {parts.map((part, partIdx) => {
                           if (part.startsWith('**') && part.endsWith('**')) {
-                            return <strong key={partIdx} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+                            return <strong key={partIdx} className={`font-semibold ${textColorBold}`}>{part.slice(2, -2)}</strong>;
                           }
-                          return <span key={partIdx}>{part}</span>;
+                          return <span key={partIdx} className={textColor}>{part}</span>;
                         })}
                       </div>
                     );
@@ -292,14 +302,14 @@ export default function Assistant({
                   // Style bullet points
                   if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
                     return (
-                      <div key={lineIdx} className="ml-4 text-slate-700 my-1 flex items-start gap-2">
-                        <span className="text-orange-500 mt-1 font-bold">•</span>
+                      <div key={lineIdx} className={`ml-4 ${textColor} my-1 flex items-start gap-2`}>
+                        <span className={`${isUser ? 'text-white' : 'text-orange-500'} mt-1 font-bold`}>•</span>
                         <span>{line.trim().substring(1).trim()}</span>
                       </div>
                     );
                   }
                   // Regular text
-                  return <div key={lineIdx} className="my-1 text-slate-700">{line || '\u00A0'}</div>;
+                  return <div key={lineIdx} className={`my-1 ${textColor}`}>{line || '\u00A0'}</div>;
                 })}
               </div>
             </div>
@@ -340,7 +350,7 @@ export default function Assistant({
                 }
               }}
               placeholder={loading ? t('assistantPlaceholderLoading') : t('assistantPlaceholderReady')}
-              className="input-modern"
+              className="w-full px-4 py-3 bg-white border-2 border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 placeholder:text-black text-black"
               disabled={loading}
             />
           </div>
@@ -376,6 +386,73 @@ export default function Assistant({
       </div>
     </div>
   );
+}
+
+/**
+ * Detect the language of a user message
+ * Returns a language code or 'auto' to let the AI detect it
+ */
+function detectMessageLanguage(message: string): DocLanguage | 'auto' {
+  const lowerMessage = message.toLowerCase();
+  
+  // French indicators
+  const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'ou', 'pour', 'avec', 'sans', 'est', 'sont', 'être', 'avoir', 'faire', 'aller', 'vous', 'nous', 'ils', 'elles', 'c\'est', 'qu\'', 'd\'', 'l\'', 'n\''];
+  const frenchChars = /[éèêëàâçùûüôö]/;
+  const frenchPatterns = /(qu'|d'|l'|n'|c'est)/i;
+  
+  // German indicators
+  const germanWords = ['der', 'die', 'das', 'und', 'oder', 'für', 'mit', 'ohne', 'ist', 'sind', 'sein', 'haben', 'machen', 'gehen', 'sie', 'wir', 'ein', 'eine', 'einen'];
+  const germanChars = /[äöüß]/;
+  const germanPatterns = /(der|die|das|ein|eine|einen)\s/i;
+  
+  // Count matches
+  let frenchScore = 0;
+  let germanScore = 0;
+  
+  // Check for French words
+  frenchWords.forEach(word => {
+    if (lowerMessage.includes(word)) {
+      frenchScore += 1;
+    }
+  });
+  
+  // Check for French characters
+  if (frenchChars.test(message)) {
+    frenchScore += 3;
+  }
+  
+  // Check for French patterns
+  if (frenchPatterns.test(message)) {
+    frenchScore += 2;
+  }
+  
+  // Check for German words
+  germanWords.forEach(word => {
+    if (lowerMessage.includes(word)) {
+      germanScore += 1;
+    }
+  });
+  
+  // Check for German characters
+  if (germanChars.test(message)) {
+    germanScore += 3;
+  }
+  
+  // Check for German patterns
+  if (germanPatterns.test(message)) {
+    germanScore += 2;
+  }
+  
+  // Determine language based on scores
+  if (frenchScore > germanScore && frenchScore >= 2) {
+    return 'fr';
+  } else if (germanScore > frenchScore && germanScore >= 2) {
+    return 'de';
+  }
+  
+  // If no clear match, return 'auto' to let AI detect the language
+  // This allows support for any language
+  return 'auto';
 }
 
 /**
@@ -442,7 +519,8 @@ async function processConversationalRequest(
   currentDocumentation: string,
   model: string = 'gpt-4o-mini',
   t?: (key: TranslationKey) => string,
-  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: number }> = []
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: number }> = [],
+  language: DocLanguage | 'auto' = 'en'
 ): Promise<string> {
   const { callLangChain } = await import('../lib/langchain-service');
   
@@ -452,6 +530,19 @@ async function processConversationalRequest(
     .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
     .join('\n\n');
   
+  // Language-specific instructions
+  let languageInstruction = '';
+  if (language === 'en') {
+    languageInstruction = 'Respond in English. Use clear, professional English.';
+  } else if (language === 'fr') {
+    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel.';
+  } else if (language === 'de') {
+    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch.';
+  } else {
+    // For any other language or 'auto', instruct AI to detect and respond in the same language
+    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. Use clear, professional language in whatever language the user is using.';
+  }
+  
   const systemPrompt = `You are a helpful AI assistant that helps users understand and discuss their documentation. You can:
 - Answer questions about the documentation
 - Explain sections or concepts
@@ -460,6 +551,8 @@ async function processConversationalRequest(
 - Help users understand what's in their documentation
 
 IMPORTANT: You are having a CONVERSATION. Do NOT edit or modify the documentation unless the user explicitly asks you to edit it. Just discuss, explain, and provide helpful information.
+
+${languageInstruction}
 
 Be friendly, conversational, and helpful. If the user asks about something specific in the documentation, reference it. If they ask for suggestions, provide them without making changes.
 
@@ -515,11 +608,27 @@ async function processDocumentationEditRequest(
   request: string,
   currentDocumentation: string,
   model: string = 'gpt-4o-mini',
-  t?: (key: TranslationKey) => string
+  t?: (key: TranslationKey) => string,
+  language: DocLanguage | 'auto' = 'en'
 ): Promise<{ message: string; updatedDocumentation?: string }> {
   const { callLangChain } = await import('../lib/langchain-service');
   
+  // Language-specific instructions
+  let languageInstruction = '';
+  if (language === 'en') {
+    languageInstruction = 'Respond in English. Use clear, professional English. When explaining changes, write in English.';
+  } else if (language === 'fr') {
+    languageInstruction = 'Répondez en français. Utilisez un français clair et professionnel. Lorsque vous expliquez les modifications, écrivez en français.';
+  } else if (language === 'de') {
+    languageInstruction = 'Antworten Sie auf Deutsch. Verwenden Sie klares, professionelles Deutsch. Wenn Sie Änderungen erklären, schreiben Sie auf Deutsch.';
+  } else {
+    // For any other language or 'auto', instruct AI to detect and respond in the same language
+    languageInstruction = 'IMPORTANT: Detect the language of the user\'s message and respond in the EXACT SAME LANGUAGE. Match the user\'s language precisely - if they write in Spanish, respond in Spanish; if they write in Italian, respond in Italian; if they write in Japanese, respond in Japanese, etc. When explaining changes, use clear, professional language in whatever language the user is using.';
+  }
+  
   const systemPrompt = `You are a helpful AI assistant specialized in editing and improving documentation. Your role is to help users edit, improve, and refine their documentation text.
+
+${languageInstruction}
 
 YOUR CAPABILITIES:
 - Rewrite sections for better clarity

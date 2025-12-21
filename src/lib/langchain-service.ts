@@ -94,11 +94,11 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
           console.log('[LangChain] Routing OpenAI API call:', {
             mode: isDev ? 'dev (proxy)' : 'production (direct)',
             url: proxyUrl,
-            model: body.model || model,
-            messagesCount: body.messages?.length || 0,
-            apiKeyPresent: !!apiKey,
-            apiKeyPrefix: apiKey.substring(0, 10) + '...',
-          });
+              model: body.model || model,
+              messagesCount: body.messages?.length || 0,
+              apiKeyPresent: !!apiKey,
+              apiKeyPrefix: apiKey.substring(0, 10) + '...',
+            });
           
           // Prepare headers based on mode
           const headers: HeadersInit = {
