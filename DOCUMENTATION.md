@@ -1,681 +1,490 @@
+```
 # README
 
-# GitScribe: AI-Powered Documentation Generation Tool
 
-## Project Title and Description
+# GitScribe: Ein umfassender Dokumentationsgenerator für Entwickler
 
-### Overview
+## Projekttitel und Beschreibung
 
-GitScribe is an innovative web application designed to automate the generation of comprehensive documentation from GitHub repositories. By leveraging an intelligent multi-agent workflow system, GitScribe creates detailed, well-structured documentation tailored to the specific needs of developers and teams. Built with modern technologies such as React, TypeScript, and Vite, the tool harnesses the power of OpenAI's language models via LangChain, enabling it to produce documentation in various formats and languages while ensuring clarity and accuracy.
+### Übersicht
+GitScribe ist eine innovative Webanwendung, die darauf abzielt, den Dokumentationsprozess für Entwickler und technische Autoren zu optimieren. Entwickelt mit modernen Technologien wie JavaScript, TypeScript und React, bietet GitScribe eine robuste Plattform zum Erstellen, Verwalten und Exportieren von Dokumentationen in verschiedenen Formaten. Die Anwendung nutzt das Vite-Build-Tool für eine schnelle Entwicklung und optimierte Produktionsbuilds, sodass die Benutzer sich auf die Erstellung hochwertiger Dokumentationen konzentrieren können, ohne die Komplexität aufwändiger Einrichtungsprozesse.
 
-The application addresses a critical pain point in software development: maintaining up-to-date, comprehensive documentation that accurately reflects the current state of a codebase. Traditional documentation processes are often manual, time-consuming, and prone to becoming outdated as projects evolve. GitScribe solves this by automatically analyzing repository structure, code patterns, configuration files, and dependencies to generate contextually relevant documentation that grows with your project.
+Der Hauptzweck von GitScribe besteht darin, die häufigsten Probleme im Zusammenhang mit der Dokumentationserstellung und -verwaltung anzugehen. Viele Entwickler haben Schwierigkeiten, aktuelle Dokumentationen zu pflegen, die ihren Codebestand genau widerspiegeln, was zu Verwirrung und Ineffizienzen führt. GitScribe vereinfacht diesen Prozess, indem es Funktionen wie die Unterstützung mehrerer Repositories, KI-gestützte Arbeitsabläufe und anpassbare Vorlagen bietet, die es den Benutzern ermöglichen, umfassende Dokumentationen zu erstellen, die sich mit ihren Projekten weiterentwickeln. Durch die Integration fortschrittlicher Funktionen wie KI-gestützte Inhaltsvorschläge und Echtzeit-Zusammenarbeit befähigt GitScribe Teams, hochwertige Dokumentationen mit minimalem Aufwand zu erstellen.
 
-GitScribe's architecture is built on a sophisticated agent-based system where specialized AI agents handle different aspects of the documentation generation process. These agents work collaboratively to discover repository contents, analyze code quality and structure, plan documentation strategies, and generate comprehensive documentation sections. The system supports multiple output formats including Markdown, HTML, MDX, OpenAPI specifications, and PDF, making it versatile for different documentation needs and publishing platforms.
+Kernstück von GitScribe ist eine modulare Architektur, die Skalierbarkeit und Flexibilität fördert. Die Anwendung ist so konzipiert, dass sie verschiedene Dokumentationsformate unterstützt, darunter Markdown, PDF und HTML, und so den unterschiedlichen Bedürfnissen ihrer Benutzer gerecht wird. Zu den wichtigsten Funktionen gehören eine benutzerfreundliche Oberfläche zum Verwalten von Dokumentationsabschnitten, ein KI-Assistent zur Generierung von Inhalten und Werkzeuge zur Qualitätsanalyse und Vorschläge zur Umstrukturierung. Mit dem Fokus auf Produktivitätssteigerung und Reduzierung der kognitiven Belastung ist GitScribe die ideale Lösung für Entwickler und Organisationen, die ihre Dokumentationspraktiken verbessern möchten.
 
-### Purpose and Goals
+### Zweck und Ziele
+Der Hauptzweck von GitScribe besteht darin, eine umfassende Lösung für die Dokumentationserstellung bereitzustellen, die die Herausforderungen berücksichtigt, mit denen Entwickler und technische Autoren konfrontiert sind. Durch die Automatisierung repetitiver Aufgaben und das Angebot intelligenter Inhaltsvorschläge ermöglicht es GitScribe den Benutzern, sich auf die kreativen Aspekte der Dokumentation zu konzentrieren, anstatt sich mit Formatierung und Struktur aufzuhalten. Dies verbessert nicht nur die Qualität der produzierten Dokumentation, sondern reduziert auch erheblich die Zeit und den Aufwand, die zur Pflege erforderlich sind.
 
-The primary purpose of GitScribe is to eliminate the often cumbersome task of manual documentation maintenance, which can lead to outdated or incomplete information being presented to users and contributors. By automating this process, GitScribe not only saves time but also enhances the quality of the documentation generated. Users can expect their documentation to be consistently up-to-date and reflective of the latest changes in their codebase, thereby improving the overall usability and accessibility of their projects.
+Zu den Hauptzielen von GitScribe gehört es, den Zugang zu hochwertigen Dokumentationstools zu demokratisieren und sie Entwicklern aller Fähigkeitsstufen zur Verfügung zu stellen. Durch die Bereitstellung einer intuitiven Benutzeroberfläche und robuster Funktionen zielt GitScribe darauf ab, die Einstiegshürden für die Erstellung professioneller Dokumentationen zu senken. Dieses Engagement für Zugänglichkeit stellt sicher, dass selbst Personen mit begrenztem technischen Fachwissen effektive Dokumentationen erstellen können, die den Branchenstandards entsprechen.
 
-One of the key goals of GitScribe is to democratize high-quality documentation generation. Not all developers have the time, expertise, or resources to create comprehensive documentation manually. GitScribe levels the playing field by providing an AI-powered solution that can generate professional-grade documentation regardless of team size or budget. This is particularly valuable for open-source projects, where documentation quality often determines adoption rates and community engagement.
+Neben seinen Kernfunktionen will GitScribe mehrsprachige Dokumentationen unterstützen und die kognitive Belastung für die Benutzer reduzieren. Durch die Bereitstellung von Übersetzungsfunktionen und anpassbaren Vorlagen ermöglicht es GitScribe Teams, Dokumentationen zu erstellen, die für ein globales Publikum zugänglich sind. Darüber hinaus ist die Anwendung so konzipiert, dass sie Ablenkungen minimiert und Arbeitsabläufe rationalisiert, sodass Benutzer sich ohne unnötige Unterbrechungen auf ihr Schreiben konzentrieren können.
 
-Another important goal is to support multiple languages and formats, making documentation accessible to international audiences and compatible with various documentation platforms. GitScribe's multi-language support (English, French, German) and format flexibility (Markdown, HTML, MDX, OpenAPI, PDF) ensure that generated documentation can be easily integrated into existing workflows and documentation systems. The tool also aims to reduce the cognitive load on developers by automating repetitive documentation tasks, allowing them to focus on writing code and building features.
+### Zielgruppe
+Die Hauptzielgruppe von GitScribe umfasst Entwickler, Projektmanager und technische Autoren, die effiziente Werkzeuge zur Dokumentationserstellung benötigen. Entwickler profitieren von der Fähigkeit von GitScribe, den Dokumentationsprozess zu automatisieren, sodass ihr Code genau dargestellt und von anderen leicht verstanden wird. Projektmanager können GitScribe nutzen, um die Zusammenarbeit zwischen den Teammitgliedern zu fördern und sicherzustellen, dass die Dokumentation aktuell und auf die Projektziele abgestimmt bleibt.
 
-### Target Audience
+Einzelne Entwickler, Open-Source-Wartende und Unternehmens-Teams können alle von den Funktionen von GitScribe profitieren. Für einzelne Entwickler bietet die Anwendung einen optimierten Workflow, der die Zeit für Dokumentationsaufgaben reduziert, sodass sie sich auf das Programmieren konzentrieren können. Open-Source-Wartende können GitScribe verwenden, um umfassende Dokumentationen zu erstellen, die die Benutzerfreundlichkeit ihrer Projekte verbessern, während Unternehmens-Teams von den Funktionen zur Zusammenarbeit profitieren können, die es mehreren Mitwirkenden ermöglichen, gleichzeitig an der Dokumentation zu arbeiten.
 
-The target audience for GitScribe primarily includes software developers, project managers, and technical writers involved in open-source or collaborative software development. By using GitScribe, users can quickly and efficiently create, update, and maintain documentation, ultimately resulting in enhanced project clarity and improved collaboration among team members. In essence, GitScribe empowers users to focus on development while ensuring that their documentation remains a reliable and informative resource.
+Technische Autoren und Projektmanager können ebenfalls von den Fähigkeiten von GitScribe profitieren. Technische Autoren können den KI-Assistenten nutzen, um Inhaltsvorschläge zu generieren und die Gesamtqualität der Dokumentation zu verbessern. Projektmanager können sicherstellen, dass ihre Teams mit den notwendigen Werkzeugen ausgestattet sind, um hochwertige Dokumentationen zu erstellen, die den organisatorischen Standards entsprechen. Indem es eine vielfältige Zielgruppe anspricht, zielt GitScribe darauf ab, die bevorzugte Lösung für alle Dokumentationsbedürfnisse zu werden.
 
-Individual developers working on personal projects or small teams will find GitScribe particularly valuable for quickly generating professional documentation without investing significant time in manual writing. Open-source maintainers can use GitScribe to ensure their projects have comprehensive, up-to-date documentation that helps attract contributors and users. Enterprise development teams can leverage GitScribe to maintain consistent documentation standards across multiple projects and repositories, reducing the burden on individual team members.
+## Funktionen
 
-Technical writers and documentation specialists can use GitScribe as a starting point for their work, using the AI-generated content as a foundation that they can refine and enhance. Project managers can utilize GitScribe to ensure that documentation requirements are met without requiring extensive developer time. Additionally, organizations transitioning to new codebases or onboarding new team members can use GitScribe to quickly generate comprehensive documentation that helps with knowledge transfer and reduces onboarding time.
-
-## Features
-
-### Core Features
-
-1. **GitHub Repository Documentation**: Automatically generate documentation from any GitHub repository by analyzing its structure, code, and configuration files.
+### Kernfunktionen
+1. **Repository-Dokumentation**: Generiert automatisch Dokumentationen aus Code-Repositories und stellt sicher, dass alle relevanten Informationen erfasst und klar präsentiert werden.
    
-2. **Multi-Repository Support**: Select and process multiple repositories simultaneously with batch generation capabilities.
+2. **Unterstützung mehrerer Repositories**: Ermöglicht Benutzern das Verwalten von Dokumentationen über mehrere Repositories hinweg, was die Konsistenz und Kohärenz der Dokumentationsbemühungen erleichtert.
 
-3. **AI Agent Workflow System**: An intelligent multi-agent pipeline orchestrates discovery, analysis, quality assessment, planning, writing, and Git operations.
+3. **KI-Agenten-Workflow**: Integriert KI-gesteuerte Arbeitsabläufe, die Benutzern helfen, Inhalte zu generieren, Verbesserungen vorzuschlagen und repetitive Aufgaben zu automatisieren.
 
-4. **Multiple Output Formats**: Support for Markdown, Markdown with Mermaid diagrams, MDX, OpenAPI (YAML), HTML, and PDF.
+4. **Verschiedene Formate**: Unterstützt verschiedene Ausgabeformate, darunter Markdown, PDF und HTML, sodass Benutzer das beste Format für ihre Bedürfnisse auswählen können.
 
-5. **Documentation Sections**: Generate README, Architecture, API Reference, Components, Testing & CI/CD, and Changelog sections.
+5. **Dokumentationsabschnitte**: Organisiert Dokumentationen in leicht verwaltbare Abschnitte, sodass Benutzer ihre Inhalte logisch und intuitiv strukturieren können.
 
-6. **Multi-Language Support**: Generate documentation in English, French, and German.
+6. **Mehrsprachige Unterstützung**: Bietet Werkzeuge zur Übersetzung von Dokumentationen in mehrere Sprachen, um sie einem globalen Publikum zugänglich zu machen.
 
-7. **AI-Powered Assistant**: An interactive AI assistant helps edit and improve generated documentation.
+7. **KI-Assistent**: Bietet einen KI-gestützten Assistenten, der Benutzern hilft, Inhalte zu generieren, Bearbeitungen vorzuschlagen und die Gesamtqualität der Dokumentation zu verbessern.
 
-8. **Quality Analysis**: Automated code quality scoring with detailed metrics and recommendations.
+8. **Qualitätsanalyse**: Analysiert Dokumentationen auf Klarheit, Konsistenz und Vollständigkeit und bietet den Benutzern umsetzbare Rückmeldungen zur Verbesserung ihrer Inhalte.
 
-9. **Refactor Proposals**: AI-generated suggestions for improving repository structure.
+9. **Vorschläge zur Umstrukturierung**: Schlägt Verbesserungen der Dokumentationsstruktur und -inhalte vor, um Benutzern zu helfen, ihr Schreiben und ihre Präsentation zu verfeinern.
 
-10. **Badge Generation**: Automatic generation of repository quality badges.
+10. **Badge-Generierung**: Generiert automatisch Badges für Dokumentationsqualität und -status und bietet visuelle Indikatoren für den Gesundheitszustand der Dokumentation.
 
-11. **PDF Export**: Export documentation as PDF files.
+11. **PDF-Export**: Ermöglicht Benutzern, ihre Dokumentationen als PDF-Dateien zu exportieren, was das Teilen und Verteilen erleichtert.
 
-12. **Direct GitHub Integration**: Commit generated documentation directly to repositories.
+12. **GitHub-Integration**: Integriert nahtlos mit GitHub, sodass Benutzer Dokumentationen direkt aus ihren Repositories abrufen und Updates einfach pushen können.
 
-13. **RAG-Enhanced Context**: Uses Retrieval-Augmented Generation (RAG) to provide AI agents with relevant code context for more accurate documentation.
+13. **RAG-verbesserter Kontext**: Nutzt Retrieval-Augmented Generation (RAG)-Techniken, um kontextuell relevante Vorschläge und Inhaltserstellungen bereitzustellen.
 
-14. **Customizable Documentation Styles**: Support for different documentation styles including comprehensive, technical, and basic depth levels.
+14. **Anpassbare Stile**: Bietet anpassbare Vorlagen und Stile, sodass Benutzer das Erscheinungsbild ihrer Dokumentation an ihre Marke anpassen können.
 
-### Advanced Features
+### Erweiterte Funktionen
+1. **GitHub API-Integration**: Nutzt die GitHub API, um Repository-Daten abzurufen und sicherzustellen, dass die Dokumentation immer auf dem neuesten Stand ist.
 
-1. **GitHub API Integration**: Direct integration with GitHub API for repository access and file operations.
+2. **Token-Unterstützung**: Unterstützt Authentifizierungstoken für den sicheren Zugriff auf private Repositories und APIs, was die Sicherheit und Benutzerfreundlichkeit erhöht.
 
-2. **Personal Access Token Support**: Secure authentication for private repositories.
+3. **Echtzeit-Statistiken**: Bietet Echtzeitstatistiken zur Nutzung und Interaktion mit der Dokumentation, sodass Benutzer die Effektivität ihrer Inhalte verfolgen können.
 
-3. **Real-time Statistics**: Track documentation metrics including word count, line count, token usage, and estimated costs.
+4. **Tabbed Interface**: Verfügt über eine benutzerfreundliche tabbed Oberfläche für eine einfache Navigation zwischen verschiedenen Dokumentationsabschnitten.
 
-4. **Tabbed Interface**: View documentation for multiple repositories in separate tabs.
+5. **Zusammenklappbare UI**: Implementiert eine zusammenklappbare Benutzeroberfläche zur Verwaltung großer Dokumentationsmengen, was die Benutzerfreundlichkeit verbessert und Unordnung reduziert.
 
-5. **Collapsible UI**: Clean, modern interface with collapsible sections for better organization.
+6. **Kostenabschätzung**: Bietet Werkzeuge zur Schätzung der Kosten von Dokumentationsprojekten, um Teams bei der Budgetierung zu helfen.
 
-6. **Cost Estimation**: Real-time cost calculation based on OpenAI model usage.
+7. **Auto-Update**: Aktualisiert Dokumentationen automatisch basierend auf Änderungen im Codebestand, um sicherzustellen, dass der Inhalt relevant und genau bleibt.
 
-7. **Auto-Update**: Automatically regenerate and commit documentation when repositories are updated (pushes/merges to main branch).
+8. **Fortschrittsverfolgung**: Verfolgt den Fortschritt von Dokumentationsprojekten, sodass Teams ihre Bemühungen überwachen und im Zeitplan bleiben können.
 
-8. **Progress Tracking**: Real-time progress updates for multi-repository batch operations.
+9. **Modellauswahl**: Bietet Optionen zur Auswahl verschiedener KI-Modelle für die Inhaltserstellung, sodass Benutzer die Qualität und den Stil der generierten Inhalte anpassen können.
 
-9. **Model Selection**: Choose from different OpenAI models (GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-3.5-turbo) based on your needs and budget.
+10. **Übersetzungsunterstützung**: Integriert Übersetzungsdienste, um die Erstellung mehrsprachiger Dokumentationen zu erleichtern und die Reichweite der Inhalte zu erweitern.
 
-10. **Translation Support**: Built-in translation system for UI elements and generated documentation in multiple languages.
+11. **Vektor-Speicher**: Implementiert einen Vektor-Speicher für eine effiziente Abfrage kontextuell relevanter Informationen, was die Fähigkeit der KI verbessert, Benutzern zu helfen.
 
-11. **Vector Store Integration**: Uses vector embeddings for semantic code search and context retrieval.
-
-12. **Directory Tree Generation**: Automatically generates complete directory structure trees for architecture documentation.
+12. **Verzeichnisbaum-Generierung**: Generiert automatisch Verzeichnisbäume für Dokumentationen und bietet einen klaren Überblick über die Inhaltsstruktur.
 
 ## Installation/Setup
 
-### Prerequisites
+### Voraussetzungen
+Um GitScribe einzurichten, stellen Sie sicher, dass Sie die folgenden Voraussetzungen erfüllen:
+- **Node.js**: Die Anwendung erfordert Node.js Version 14 oder höher, um den Entwicklungsserver auszuführen und die Anwendung zu bauen.
+- **npm**: Der Node Package Manager (npm) wird benötigt, um Abhängigkeiten zu installieren und Pakete zu verwalten.
+- **Git**: Git wird benötigt, um das Repository zu klonen und die Versionskontrolle zu verwalten.
 
-To set up GitScribe, ensure you have the following prerequisites:
-
-- **Node.js 18+**: The application requires Node.js version 18 or higher.
-- **npm/yarn**: A package manager for installing dependencies.
-- **OpenAI API Key**: Required for AI-powered features.
-- **GitHub Personal Access Token**: Optional, but recommended for accessing private repositories.
-
-### Step-by-Step Setup Instructions
-
-1. **Clone the Repository**
-
-   Begin by cloning the GitScribe repository to your local machine:
-
+### Schritt-für-Schritt-Einrichtungsanleitung
+1. **Repository klonen**: Beginnen Sie mit dem Klonen des GitScribe-Repositories auf Ihren lokalen Computer.
    ```bash
    git clone https://github.com/DimitarHristovski/GitScribe.git
-   cd GitScribe
    ```
 
-2. **Install Dependencies**
-
-   Use npm or yarn to install the necessary dependencies:
-
+2. **Abhängigkeiten installieren**: Navigieren Sie zum Projektverzeichnis und installieren Sie die erforderlichen Abhängigkeiten mit npm.
    ```bash
+   cd GitScribe
    npm install
    ```
 
-3. **Configure Environment Variables**
-
-   Create a `.env` file in the root directory of the project and add the following environment variables:
-
-   ```env
-   VITE_OPENAI_API_KEY=your_openai_api_key_here
-   VITE_GITHUB_TOKEN=your_github_token_here  # Optional
+3. **Umgebungsvariablen konfigurieren**: Erstellen Sie eine `.env`-Datei im Stammverzeichnis und fügen Sie die erforderlichen Umgebungsvariablen hinzu. Hier ist ein Beispiel:
+   ```plaintext
+   GITHUB_TOKEN=your_github_token
    ```
 
-   - `VITE_OPENAI_API_KEY`: Your OpenAI API key for AI-powered features.
-   - `VITE_GITHUB_TOKEN`: Your GitHub Personal Access Token (optional).
-
-4. **Start the Development Server**
-
-   Launch the development server using the following command:
-
+4. **Entwicklungsserver starten**: Starten Sie den Entwicklungsserver, um mit der Arbeit an der Anwendung zu beginnen.
    ```bash
    npm run dev
    ```
 
-   The application will be accessible at `http://localhost:5173`.
-
-5. **Build for Production**
-
-   To build the application for production, run:
-
+5. **Für die Produktion bauen**: Wenn Sie bereit sind zu deployen, bauen Sie die Anwendung für die Produktion.
    ```bash
    npm run build
    ```
 
-   The production-ready files will be located in the `dist/` directory.
+### Fehlersuche
+- **API-Schlüssel-Fehler**: Wenn Sie Probleme mit API-Schlüsseln haben, stellen Sie sicher, dass Ihre Schlüssel korrekt in der `.env`-Datei gesetzt sind und die erforderlichen Berechtigungen haben.
+  
+- **Ratenbegrenzung**: Wenn Sie von der GitHub API eine Ratenbegrenzung erfahren, ziehen Sie in Betracht, exponentielles Backoff in Ihren Anfragen zu implementieren oder Ihren API-Plan zu aktualisieren.
 
-### Troubleshooting
+- **Zugriff auf private Repositories**: Stellen Sie sicher, dass Ihr GitHub-Token Zugriff auf die privaten Repositories hat, die Sie dokumentieren möchten.
 
-- **OpenAI API Key Error**: Ensure the `VITE_OPENAI_API_KEY` is correctly set in your `.env` file. Verify that the API key is valid and has sufficient credits. If you're still experiencing issues, check that the key starts with "sk-" and hasn't expired. You can also verify your API key by testing it directly with OpenAI's API.
+- **CORS-Probleme**: Wenn Sie auf CORS-Fehler stoßen, überprüfen Sie Ihre Serverkonfiguration und stellen Sie sicher, dass die erforderlichen Header gesetzt sind, um Cross-Origin-Anfragen zuzulassen.
 
-- **GitHub Rate Limiting**: If you encounter rate limiting issues, add a GitHub Personal Access Token to increase rate limits. The token can be set in the UI or via `VITE_GITHUB_TOKEN`. Authenticated requests have a much higher rate limit (5,000 requests per hour) compared to unauthenticated requests (60 requests per hour).
+- **Build-Fehler**: Wenn der Build-Prozess fehlschlägt, überprüfen Sie die Fehlermeldungen auf fehlende Abhängigkeiten oder Syntaxfehler in Ihrem Code.
 
-- **Private Repository Access**: Ensure your GitHub token has the `repo` scope and access to the specific repository. For organization repositories, you may also need the `read:org` scope. Verify token permissions in GitHub Settings > Developer settings > Personal access tokens.
+- **Zeitüberschreitungsprobleme**: Erhöhen Sie die Timeout-Einstellungen in Ihren API-Anfragen, wenn Sie während des Datenabrufs auf Zeitüberschreitungen stoßen.
 
-- **CORS Errors**: If you encounter CORS (Cross-Origin Resource Sharing) errors when fetching from GitHub, ensure you're using a GitHub Personal Access Token. The application uses a Vite proxy for OpenAI API calls, but GitHub API calls should work directly with proper authentication.
+- **Speicherprobleme**: Wenn die Anwendung aufgrund von Speicherproblemen abstürzt, ziehen Sie in Betracht, Ihren Code zu optimieren oder das Speicherlimit für Node.js zu erhöhen.
 
-- **Build Failures**: If the build process fails, ensure you're using Node.js 18 or higher. Clear your `node_modules` folder and `package-lock.json`, then run `npm install` again. Check for any TypeScript errors by running `npm run build` and reviewing the error messages.
+## Verwendung
 
-- **Documentation Generation Timeout**: For very large repositories, documentation generation may take longer. If you encounter timeouts, try processing repositories individually rather than in batch, or consider using a faster model like GPT-4o-mini for initial generation.
+### Schnellstartanleitung
+1. **Repository klonen**: Befolgen Sie die Einrichtungsanweisungen, um das GitScribe-Repository zu klonen.
+2. **Abhängigkeiten installieren**: Führen Sie `npm install` aus, um alle erforderlichen Pakete zu installieren.
+3. **Umgebungsvariablen konfigurieren**: Richten Sie Ihre `.env`-Datei mit den erforderlichen Anmeldeinformationen ein.
+4. **Entwicklungsserver starten**: Verwenden Sie `npm run dev`, um die Anwendung lokal zu starten.
+5. **Dokumentation erstellen**: Beginnen Sie mit der Erstellung von Dokumentationen, indem Sie zu den entsprechenden Abschnitten in der Anwendung navigieren.
+6. **KI-Funktionen nutzen**: Nutzen Sie den KI-Assistenten, um Inhalte zu generieren und Ihre Dokumentation zu verbessern.
+7. **Dokumentation exportieren**: Sobald die Dokumentation fertiggestellt ist, exportieren Sie sie im gewünschten Format.
 
-- **Memory Issues with PDF Export**: Large documentation files may cause memory issues during PDF export. If this occurs, try exporting individual sections rather than the entire documentation, or use the HTML export format instead.
-
-## Usage
-
-### Quick Start Guide
-
-1. **Add Your OpenAI API Key**
-
-   - Click the settings icon in the top right corner of the application.
-   - Enter your OpenAI API key.
-   - Click "Save Changes" to store the key.
-
-2. **Select Repositories**
-
-   - Enter a GitHub repository URL (e.g., `owner/repo` or `https://github.com/owner/repo`).
-   - Alternatively, click "Select Repositories" to browse and select multiple repositories.
-
-3. **Configure Output**
-
-   - Select the desired output formats (Markdown, MDX, OpenAPI, etc.).
-   - Choose the documentation sections you wish to generate (README, Architecture, API, etc.).
-   - Select the language for the documentation (English, French, German).
-
-4. **Run the Workflow**
-
-   - Click "Run Workflow" to start the AI agent pipeline.
-   - Monitor progress as agents analyze, plan, and generate documentation.
-
-5. **Review and Commit**
-
-   - Review the generated documentation.
-   - Use the AI Assistant to edit and improve the content.
-   - Click "Commit to Repos" to commit the documentation to GitHub.
-
-### Detailed Usage Examples
-
-#### Basic Example
-
+### Detaillierte Nutzung Beispiele
+#### Basisbeispiel
 ```typescript
-import { generateDocumentationFromGitHub } from './lib/documentation-writer';
+// Notwendige Module importieren
+import { generateDocumentation } from './lib/documentation-writer';
 
-async function generateDocs() {
-  const githubUrl = 'https://github.com/owner/repo';
-  const options = {
-    format: 'markdown',
-    includeCode: true,
-    includeProps: true,
-    includeExamples: true,
-    depth: 'comprehensive',
-  };
-
-  try {
-    const documentation = await generateDocumentationFromGitHub(githubUrl, options);
+// Funktion zur Erstellung von Dokumentationen für ein Repository
+const createRepoDocumentation = async (repoName: string) => {
+    const documentation = await generateDocumentation(repoName);
     console.log(documentation);
-  } catch (error) {
-    console.error('Error generating documentation:', error);
-  }
+};
+
+// Funktion mit einem Beispiel-Repository-Namen aufrufen
+createRepoDocumentation('my-sample-repo');
+```
+Dieses Beispiel zeigt, wie die Funktion `generateDocumentation` verwendet wird, um Dokumentation für ein angegebenes Repository zu erstellen. Die erwartete Ausgabe ist ein strukturiertes Dokumentationsobjekt, das weiter verarbeitet oder exportiert werden kann.
+
+#### Fortgeschrittenes Beispiel
+```typescript
+// Notwendige Module importieren
+import { DocsWriter } from './lib/agents/DocsWriter';
+
+// Erstellen Sie eine Instanz des DocsWriter
+const docsWriter = new DocsWriter();
+
+// Dokumentation mit erweiterten Optionen generieren
+const advancedDocumentation = await docsWriter.create({
+    repoName: 'my-advanced-repo',
+    includeExamples: true,
+    format: 'markdown',
+});
+
+// Die generierte Dokumentation ausgeben
+console.log(advancedDocumentation);
+```
+In diesem fortgeschrittenen Beispiel erstellen wir eine Instanz der Klasse `DocsWriter` und generieren Dokumentation mit zusätzlichen Optionen, wie dem Einschluss von Codebeispielen und der Angabe des Ausgabeformats.
+
+#### Fehlerbehandlungsbeispiel
+```typescript
+// Funktion zur Behandlung von Fehlern während der Dokumentationserstellung
+const handleDocumentationError = async (repoName: string) => {
+    try {
+        const documentation = await generateDocumentation(repoName);
+        console.log(documentation);
+    } catch (error) {
+        console.error('Fehler bei der Erstellung der Dokumentation:', error.message);
+    }
+};
+
+// Funktion mit einem Beispiel-Repository-Namen aufrufen
+handleDocumentationError('my-error-repo');
+```
+Dieses Beispiel veranschaulicht, wie man die Fehlerbehandlung bei der Erstellung von Dokumentation implementiert. Wenn ein Fehler auftritt, wird die Fehlermeldung in der Konsole protokolliert, was das Debugging erleichtert.
+
+## API/Funktionsbeispiele
+
+### `generateDocumentation`
+```typescript
+async function generateDocumentation(repoName: string): Promise<Documentation> {
+    // Implementierungsdetails...
 }
+```
+- **Parameter**:
+  | Parametername | Typ      | Beschreibung                                      | Einschränkungen                 |
+  |---------------|----------|--------------------------------------------------|---------------------------------|
+  | `repoName`    | `string` | Der Name des Repositories, für das die Dokumentation erstellt werden soll. | Muss ein gültiger Repository-Name sein. |
 
-generateDocs();
+- **Gibt zurück**: Ein `Promise`, das sich zu einem `Documentation`-Objekt auflöst, das die generierte Dokumentation enthält.
+
+- **Beispielverwendung**:
+```typescript
+// Basisverwendungsbeispiel
+const documentation = await generateDocumentation('my-repo');
+console.log(documentation);
 ```
 
-#### Advanced Example
-
+### `DocsWriter.create`
 ```typescript
-import { AgentManager } from './lib/agents/Manager';
-import { SimpleRepo } from './lib/types';
-
-async function runAgentWorkflow() {
-  const selectedRepos: SimpleRepo[] = [
-    { owner: 'owner', name: 'repo1' },
-    { owner: 'owner', name: 'repo2' },
-  ];
-
-  const agentManager = new AgentManager({
-    selectedRepos,
-    selectedOutputFormats: ['markdown', 'html'],
-    selectedSectionTypes: ['README', 'API'],
-    selectedLanguage: 'en',
-  });
-
-  try {
-    const finalState = await agentManager.run();
-    console.log('Workflow completed successfully:', finalState);
-  } catch (error) {
-    console.error('Error during agent workflow:', error);
-  }
+async create(options: DocsWriterOptions): Promise<string> {
+    // Implementierungsdetails...
 }
-
-runAgentWorkflow();
 ```
+- **Parameter**:
+  | Parametername | Typ                | Beschreibung                                      | Einschränkungen                 |
+  |----------------|---------------------|--------------------------------------------------|---------------------------------|
+  | `options`      | `DocsWriterOptions` | Optionen zur Erstellung der Dokumentation, einschließlich Repository-Name und Format. | Muss gültige Optionen enthalten. |
 
-#### Error Handling Example
+- **Gibt zurück**: Ein `Promise`, das sich zu einem `string` auflöst, der die generierte Dokumentation im angegebenen Format enthält.
 
+- **Beispielverwendung**:
 ```typescript
-import { createOrUpdateFile } from './lib/github-service';
-
-async function commitDocumentation() {
-  const owner = 'owner';
-  const repo = 'repo';
-  const path = 'docs/README.md';
-  const content = '# Documentation\n\nGenerated by GitScribe.';
-  const message = 'docs: Add auto-generated documentation';
-
-  try {
-    const result = await createOrUpdateFile(owner, repo, path, content, message);
-    console.log('Documentation committed successfully:', result);
-  } catch (error) {
-    console.error('Error committing documentation:', error);
-  }
-}
-
-commitDocumentation();
-```
-
-## API/Function Examples
-
-### `generateDocumentationFromGitHub`
-
-Generates documentation from a GitHub repository.
-
-```typescript
-async function generateDocumentationFromGitHub(
-  githubUrl: string,
-  options?: DocumentationOptions
-): Promise<string>
-```
-
-**Parameters**:
-- `githubUrl`: The URL of the GitHub repository or in `owner/repo` format.
-- `options`: Optional configuration object.
-  - `format`: The desired output format ('markdown' | 'html' | 'json').
-  - `includeCode`: Boolean indicating whether to include code snippets.
-  - `includeProps`: Boolean indicating whether to include component props.
-  - `includeExamples`: Boolean indicating whether to include usage examples.
-  - `depth`: The depth of the documentation ('basic' | 'detailed' | 'comprehensive').
-
-**Returns**: A promise that resolves to a markdown documentation string.
-
-**Example Usage**:
-
-```typescript
-const documentation = await generateDocumentationFromGitHub('owner/repo', {
-  format: 'markdown',
-  includeCode: true,
-  depth: 'detailed',
+const docsWriter = new DocsWriter();
+const documentation = await docsWriter.create({
+    repoName: 'my-repo',
+    format: 'markdown',
 });
 console.log(documentation);
 ```
 
-### `AgentManager`
-
-Manages the agent workflow execution.
-
+### `DocsPlanner.plan`
 ```typescript
-class AgentManager {
-  constructor(
-    initialState: AgentState,
-    onStateUpdate?: (state: AgentState) => void,
-    onProgress?: (progress: AgentState['progress']) => void
-  );
-
-  async run(): Promise<AgentState>;
+async plan(repoName: string): Promise<Plan> {
+    // Implementierungsdetails...
 }
 ```
+- **Parameter**:
+  | Parametername | Typ      | Beschreibung                                      | Einschränkungen                 |
+  |---------------|----------|--------------------------------------------------|---------------------------------|
+  | `repoName`    | `string` | Der Name des Repositories, für das die Dokumentation geplant werden soll. | Muss ein gültiger Repository-Name sein. |
 
-**Example Usage**:
+- **Gibt zurück**: Ein `Promise`, das sich zu einem `Plan`-Objekt auflöst, das die vorgeschlagene Dokumentationsstruktur enthält.
 
+- **Beispielverwendung**:
 ```typescript
-const agentManager = new AgentManager(initialState, state => {
-  console.log('State updated:', state);
-});
-
-agentManager.run().then(finalState => {
-  console.log('Workflow completed:', finalState);
-});
+const docsPlanner = new DocsPlanner();
+const plan = await docsPlanner.plan('my-repo');
+console.log(plan);
 ```
 
-### `createOrUpdateFile`
-
-Creates or updates a file in a GitHub repository.
-
+### `RepoAnalysis.analyze`
 ```typescript
-async function createOrUpdateFile(
-  owner: string,
-  repo: string,
-  path: string,
-  content: string,
-  message: string,
-  branch?: string,
-  token?: string,
-  committer?: { name: string; email: string }
-): Promise<{ commit: { sha: string; html_url: string } }>
+async analyze(repoName: string): Promise<AnalysisResult> {
+    // Implementierungsdetails...
+}
+```
+- **Parameter**:
+  | Parametername | Typ      | Beschreibung                                      | Einschränkungen                 |
+  |---------------|----------|--------------------------------------------------|---------------------------------|
+  | `repoName`    | `string` | Der Name des Repositories, das analysiert werden soll. | Muss ein gültiger Repository-Name sein. |
+
+- **Gibt zurück**: Ein `Promise`, das sich zu einem `AnalysisResult`-Objekt auflöst, das Erkenntnisse über das Repository enthält.
+
+- **Beispielverwendung**:
+```typescript
+const repoAnalysis = new RepoAnalysis();
+const analysis = await repoAnalysis.analyze('my-repo');
+console.log(analysis);
 ```
 
-**Parameters**:
-- `owner`: The GitHub username or organization name that owns the repository.
-- `repo`: The name of the repository.
-- `path`: The file path within the repository (e.g., 'docs/README.md').
-- `content`: The content to write to the file (will be base64 encoded automatically).
-- `message`: The commit message for this change.
-- `branch`: Optional branch name (defaults to the repository's default branch).
-- `token`: Optional GitHub Personal Access Token (uses stored token if not provided).
-- `committer`: Optional committer information with name and email.
-
-**Returns**: A promise that resolves to an object containing the commit SHA and HTML URL.
-
-**Example Usage**:
-
+### `MultiRepoSelector.select`
 ```typescript
-const result = await createOrUpdateFile('owner', 'repo', 'docs/README.md', '# Documentation', 'docs: Update README');
-console.log('Commit URL:', result.commit.html_url);
+async select(repos: string[]): Promise<string[]> {
+    // Implementierungsdetails...
+}
+```
+- **Parameter**:
+  | Parametername | Typ          | Beschreibung                                      | Einschränkungen                 |
+  |---------------|---------------|--------------------------------------------------|---------------------------------|
+  | `repos`       | `string[]`    | Ein Array von Repository-Namen, aus denen ausgewählt werden soll. | Muss ein Array von gültigen Namen sein. |
+
+- **Gibt zurück**: Ein `Promise`, das sich zu einem Array von ausgewählten Repository-Namen auflöst.
+
+- **Beispielverwendung**:
+```typescript
+const multiRepoSelector = new MultiRepoSelector();
+const selectedRepos = await multiRepoSelector.select(['repo1', 'repo2', 'repo3']);
+console.log(selectedRepos);
 ```
 
-**Advanced Example with Branch and Committer**:
-
+### `AgentWorkflow.run`
 ```typescript
-const result = await createOrUpdateFile(
-  'myorg',
-  'myrepo',
-  'docs/API.md',
-  '# API Documentation\n\nGenerated by GitScribe.',
-  'docs: Add API documentation',
-  'develop',
-  'ghp_token123',
-  { name: 'GitScribe Bot', email: 'bot@gitscribe.com' }
-);
+async run(agentName: string): Promise<void> {
+    // Implementierungsdetails...
+}
+```
+- **Parameter**:
+  | Parametername | Typ      | Beschreibung                                      | Einschränkungen                 |
+  |---------------|----------|--------------------------------------------------|---------------------------------|
+  | `agentName`   | `string` | Der Name des Agents, der ausgeführt werden soll. | Muss ein gültiger Agent-Name sein. |
+
+- **Gibt zurück**: Ein `Promise`, das sich auflöst, wenn der Agent seine Aufgabe abgeschlossen hat.
+
+- **Beispielverwendung**:
+```typescript
+const agentWorkflow = new AgentWorkflow();
+await agentWorkflow.run('DocsWriter');
+console.log('Agent hat seine Aufgabe abgeschlossen.');
 ```
 
-### `callLangChain`
+## Konfiguration
 
-Calls the LangChain service to interact with OpenAI models.
+### Umgebungsvariablen
+| Variable       | Erforderlich | Beschreibung                                      |
+|----------------|--------------|--------------------------------------------------|
+| `GITHUB_TOKEN` | Ja           | Ihr GitHub-API-Token zum Zugriff auf Repositories. |
+| `NODE_ENV`     | Nein         | Die Umgebung, in der die Anwendung ausgeführt wird (Entwicklung oder Produktion). |
 
-```typescript
-async function callLangChain(
-  prompt: string,
-  systemPrompt?: string,
-  model: string = 'gpt-4o-mini',
-  temperature: number = 0.7,
-  repoName?: string,
-  useRAG: boolean = true,
-  maxTokens?: number
-): Promise<string>
-```
+### GitHub-Token-Setup
+1. **Erstellen Sie ein GitHub-Token**: Gehen Sie zu den Kontoeinstellungen Ihres GitHub-Kontos und erstellen Sie ein neues persönliches Zugriffstoken mit den erforderlichen Berechtigungen.
+2. **Token zur .env hinzufügen**: Kopieren Sie das Token und fügen Sie es in Ihre `.env`-Datei wie folgt ein:
+   ```plaintext
+   GITHUB_TOKEN=your_generated_token
+   ```
 
-**Parameters**:
-- `prompt`: The user prompt/question to send to the AI model.
-- `systemPrompt`: Optional system prompt that defines the AI's role and behavior.
-- `model`: The OpenAI model to use (default: 'gpt-4o-mini').
-- `temperature`: Controls randomness in responses (0.0-1.0, default: 0.7).
-- `repoName`: Optional repository name for RAG context retrieval.
-- `useRAG`: Whether to use Retrieval-Augmented Generation for context (default: true).
-- `maxTokens`: Maximum tokens in the response (default: model-dependent).
+## Architekturübersicht
 
-**Returns**: A promise that resolves to the AI-generated text response.
+### Systemdesign
+Die Gesamarchitektur von GitScribe ist so konzipiert, dass sie modular und skalierbar ist, was eine einfache Integration neuer Funktionen und Verbesserungen ermöglicht. Die clientseitige Anwendung ist mit React erstellt und bietet eine responsive und interaktive Benutzeroberfläche, die nahtlose Navigation und Inhaltsverwaltung ermöglicht. Die Anwendung kommuniziert mit verschiedenen APIs, einschließlich der GitHub-API, um Repository-Daten abzurufen und die Dokumentationserstellung zu verwalten.
 
-**Example Usage**:
+Die Datenflussmuster innerhalb von GitScribe sind für Leistung und Benutzererfahrung optimiert. Das State-Management erfolgt mithilfe von Reacts integrierten Hooks und dem Context-API, um sicherzustellen, dass die Anwendung reaktionsschnell und effizient bleibt. Die Verwendung von TypeScript verbessert die Typensicherheit und verringert die Wahrscheinlichkeit von Laufzeitfehlern, was den Entwicklungsprozess reibungsloser und vorhersehbarer macht.
 
-```typescript
-const response = await callLangChain(
-  'Generate a README for a React TypeScript project',
-  'You are an expert technical writer.',
-  'gpt-4o',
-  0.2,
-  'owner/repo',
-  true,
-  8000
-);
-console.log(response);
-```
+Im Kern von GitScribe steht ein agentenbasiertes System, das die LangChain-Integration für fortschrittliche Inhaltserstellung und -abfrage nutzt. Die Implementierung des Vektor-Speichers ermöglicht eine effiziente Speicherung und Abfrage kontextuell relevanter Informationen, was die Fähigkeit der KI verbessert, Benutzern bei der Erstellung hochwertiger Dokumentationen zu helfen. Diese Architektur unterstützt nicht nur die Kernfunktionen von GitScribe, sondern legt auch das Fundament für zukünftige Verbesserungen und Fähigkeiten.
 
-### `generateFormatDocumentation`
+### Komponentenbeziehungen
+- **AgentWorkflow**: Verantwortlich für die Verwaltung des Workflows verschiedener Agenten innerhalb der Anwendung. Er koordiniert die Ausführung von Aufgaben und stellt sicher, dass die Agenten effizient arbeiten.
+- **Assistant**: Bietet KI-gestützte Unterstützung für Benutzer, indem er Inhaltsvorschläge und -verbesserungen basierend auf Benutzereingaben und Kontext bereitstellt.
+- **MultiRepoSelector**: Erleichtert die Auswahl mehrerer Repositories für die Dokumentationserstellung, sodass Benutzer Dokumentationen über verschiedene Projekte hinweg verwalten können.
+- **DocumentationEditor**: Die Hauptschnittstelle für Benutzer zur Erstellung und Bearbeitung von Dokumentationen. Sie bietet Werkzeuge zum Formatieren, Strukturieren und Organisieren von Inhalten.
+- **AgentManager**: Verwaltet den Lebenszyklus von Agenten innerhalb der Anwendung und stellt sicher, dass sie korrekt initialisiert und ausgeführt werden.
+- **DocsWriter-Agent**: Ein Agent, der speziell entwickelt wurde, um Dokumentationsinhalte basierend auf Benutzereingaben und Repository-Daten zu generieren.
+- **RepoAnalysis-Agent**: Analysiert Repositories, um Erkenntnisse und Empfehlungen zur Verbesserung der Dokumentation bereitzustellen.
+- **DocsPlanner-Agent**: Plant die Struktur und den Inhalt der Dokumentation basierend auf benutzerdefinierten Parametern und Repository-Eigenschaften.
 
-Generates documentation in a specific output format.
-
-```typescript
-async function generateFormatDocumentation(
-  githubUrl: string,
-  format: DocOutputFormat,
-  sectionType: DocSectionType,
-  baseMarkdown: string,
-  options?: DocumentationOptions,
-  repoAnalysis?: any
-): Promise<string>
-```
-
-**Parameters**:
-- `githubUrl`: The GitHub repository URL.
-- `format`: The desired output format ('markdown' | 'markdown_mermaid' | 'mdx' | 'openapi' | 'html').
-- `sectionType`: The type of documentation section ('README' | 'ARCHITECTURE' | 'API' | 'COMPONENTS' | 'TESTING_CI' | 'CHANGELOG').
-- `baseMarkdown`: The base markdown content to convert.
-- `options`: Optional documentation options (includeCode, includeProps, includeExamples, depth).
-- `repoAnalysis`: Optional repository analysis data for format-specific enhancements.
-
-**Returns**: A promise that resolves to the formatted documentation string.
-
-**Example Usage**:
-
-```typescript
-const htmlDoc = await generateFormatDocumentation(
-  'https://github.com/owner/repo',
-  'html',
-  'README',
-  markdownContent,
-  { includeCode: true, depth: 'comprehensive' },
-  repoAnalysis
-);
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable              | Required | Description                                                  |
-|-----------------------|----------|--------------------------------------------------------------|
-| `VITE_OPENAI_API_KEY` | Yes      | Your OpenAI API key for AI-powered features                  |
-| `VITE_GITHUB_TOKEN`   | No       | GitHub Personal Access Token (can also be set in the UI)     |
-
-### GitHub Token Setup
-
-1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens).
-2. Generate a new token with the following scopes:
-   - `repo` (for private repositories and commits)
-   - `read:org` (if accessing organization repos)
-3. Either:
-   - Add it to your `.env` file as `VITE_GITHUB_TOKEN`.
-   - Or enter it in the UI when prompted (stored in localStorage).
-
-## Architecture Overview
-
-### System Design
-
-GitScribe is designed as a client-side application with no backend server required. It integrates directly with GitHub and OpenAI APIs to perform its operations. The architecture is modular, with each component responsible for a specific part of the workflow. This design choice ensures that users maintain full control over their API keys and data, with all processing happening in the browser environment.
-
-The application follows a unidirectional data flow pattern, where state flows down through components and events flow up. The agent workflow system uses a state machine pattern to manage the complex multi-step process of documentation generation. Each agent in the pipeline receives the current state, performs its specific task, and returns updated state that flows to the next agent in the sequence.
-
-The system leverages modern web technologies including React for the user interface, TypeScript for type safety, and Vite for fast development and optimized production builds. LangChain is used as an abstraction layer over OpenAI's API, providing consistent interfaces for different models and enabling features like RAG (Retrieval-Augmented Generation) for enhanced context awareness. The vector store implementation uses embeddings to enable semantic search over codebases, allowing the AI to find relevant code examples and context when generating documentation.
-
-### Component Relationships
-
-- **AgentWorkflow**: Manages the execution of the agent workflow, coordinating between different agents. It handles state transitions, progress tracking, and error handling throughout the documentation generation process. The component subscribes to state updates from the AgentManager and displays real-time progress to users.
-
-- **Assistant**: Provides an interactive interface for editing and improving documentation. It uses the LangChain service to provide AI-powered suggestions and edits. The Assistant component maintains its own conversation state and can be used to refine generated documentation before committing to GitHub.
-
-- **MultiRepoSelector**: Allows users to select multiple repositories for documentation generation. It integrates with the GitHub API to fetch user repositories and provides a searchable, filterable interface for repository selection. The component handles authentication state and token management.
-
-- **DocumentationEditor**: The main component for generating and editing documentation. It orchestrates the interaction between repository selection, format configuration, and the agent workflow. The component manages tabbed views for multiple repositories and provides export functionality for generated documentation.
-
-- **AgentManager**: The core orchestration class that manages the agent workflow execution. It maintains the agent state machine, coordinates agent execution, and handles transitions between workflow steps. The Manager uses the agent graph to determine execution order and dependencies.
-
-- **DocsWriter Agent**: Responsible for generating the actual documentation content. It uses RAG to retrieve relevant code context, calls LangChain with comprehensive prompts, and formats the output according to user-selected formats and sections. The agent generates extensive documentation (4000-8000+ words) following professional documentation standards.
-
-- **RepoAnalysis Agent**: Analyzes repository structure, technology stack, and code patterns. It provides insights that inform the documentation planning and writing process. The analysis includes framework detection, language identification, complexity assessment, and key feature extraction.
-
-- **DocsPlanner Agent**: Creates a documentation plan based on repository analysis and user preferences. It determines which sections to generate, what depth level to use, and how to structure the documentation. The planner considers the repository's complexity and purpose when making recommendations.
-
-### Project Structure
-
+### Projektstruktur
 ```
 src/
-├── components/          # Reusable React components
+├── components/          # Wiederverwendbare React-Komponenten
 │   ├── AgentWorkflow.tsx
 │   ├── Assistant.tsx
 │   ├── Footer.tsx
 │   └── MultiRepoSelector.tsx
-├── lib/                 # Core business logic
-│   ├── agents/          # AI agent implementations
-│   │   ├── Manager.ts
-│   │   ├── RepoDiscovery.ts
-│   │   ├── RepoAnalysis.ts
-│   │   ├── QualityAnalyzer.ts
-│   │   ├── RefactorProposal.ts
+├── lib/                 # Kern-Logik
+│   ├── agents/          # Agentenimplementierungen
 │   │   ├── DocsPlanner.ts
 │   │   ├── DocsWriter.ts
-│   │   └── GitOps.ts
+│   │   ├── Manager.ts
+│   │   ├── RepoAnalysis.ts
+│   │   ├── RepoDiscovery.ts
+│   │   └── types.ts
+│   ├── cursor-style-docs.ts
 │   ├── documentation-writer.ts
 │   ├── format-generators.ts
 │   ├── github-service.ts
 │   ├── langchain-service.ts
-│   ├── quality-analyzer.ts
-│   ├── refactor-proposal.ts
-│   ├── badge-generator.ts
 │   ├── pdf-exporter.ts
 │   ├── translations.ts
 │   └── url-importer.ts
-├── pages/              # Main page components
-│   ├── Landing.tsx
+├── pages/               # Hauptseitenkomponenten
 │   ├── DocumentationEditor.tsx
-│   └── InfoPage.tsx
-└── types/              # TypeScript type definitions
-    ├── core.ts
-    └── index.ts
+│   ├── InfoPage.tsx
+│   └── Landing.tsx
+├── rag/                 # RAG-Komponenten
+│   ├── chunker.ts
+│   ├── embedder.ts
+│   ├── index.ts
+│   ├── retriever.ts
+│   ├── types.ts
+│   └── vector-store.ts
+├── types/               # Typdefinitionen
+│   ├── core.ts
+│   └── index.ts
+├── App.tsx              # Hauptanwendungskomponente
+├── index.css            # Globale Stile
+├── main.tsx             # Einstiegspunkt für die Anwendung
+└── vite-env.d.ts        # Typdefinitionen für Vite
 ```
 
-## Contributing
+## Mitwirken
 
-### Guidelines for Contributors
-
-Contributions to GitScribe are welcome! Please follow these guidelines to ensure a smooth contribution process:
-
-1. **Fork the Repository**: Start by forking the GitScribe repository to your GitHub account.
-
-2. **Create a Feature Branch**: Create a new branch for your feature or bug fix:
-
+### Richtlinien für Mitwirkende
+1. **Fork des Repositories**: Klicken Sie auf die Schaltfläche "Fork" in der oberen rechten Ecke der Repository-Seite, um Ihre eigene Kopie des Projekts zu erstellen.
+2. **Erstellen Sie einen Feature-Branch**: Verwenden Sie den folgenden Befehl, um einen neuen Branch für Ihr Feature zu erstellen:
    ```bash
-   git checkout -b feature/AmazingFeature
+   git checkout -b feature/my-new-feature
    ```
-
-3. **Commit Your Changes**: Make your changes and commit them with a descriptive message:
-
+3. **Änderungen committen**: Nachdem Sie Ihre Änderungen vorgenommen haben, committen Sie sie mit einer beschreibenden Nachricht:
    ```bash
-   git commit -m 'Add some AmazingFeature'
+   git commit -m "Fügen Sie ein neues Feature hinzu"
    ```
-
-4. **Push to Your Branch**: Push your changes to your forked repository:
-
+4. **In Ihren Branch pushen**: Pushen Sie Ihre Änderungen in Ihr geforktes Repository:
    ```bash
-   git push origin feature/AmazingFeature
+   git push origin feature/my-new-feature
    ```
+5. **Einen Pull Request öffnen**: Gehen Sie zum ursprünglichen Repository und klicken Sie auf "New Pull Request", um Ihre Änderungen zur Überprüfung einzureichen.
 
-5. **Open a Pull Request**: Navigate to the original GitScribe repository and open a pull request.
+### Entwicklungsstandards
+- **TypeScript Best Practices**: Befolgen Sie die besten Praktiken für TypeScript, um die Codequalität und Wartbarkeit sicherzustellen.
+- **Funktionale Komponenten**: Verwenden Sie funktionale Komponenten und Hooks zum Erstellen von React-Komponenten.
+- **Code-Kommentare**: Schreiben Sie klare und prägnante Kommentare, um komplexe Logik und Entscheidungen in Ihrem Code zu erklären.
+- **Dokumentation**: Stellen Sie sicher, dass alle neuen Funktionen und Änderungen angemessen dokumentiert sind.
+- **Tests**: Schreiben Sie Unit-Tests für neue Funktionen und stellen Sie sicher, dass bestehende Tests vor der Einreichung eines Pull Requests bestehen.
 
-### Development Standards
+## Lizenz
+GitScribe ist unter der MIT-Lizenz lizenziert. Sie dürfen die Software verwenden, ändern und verteilen, solange Sie die ursprüngliche Lizenz in Kopien oder wesentlichen Teilen der Software einfügen.
 
-- **TypeScript Best Practices**: Ensure type safety and use TypeScript features effectively.
-- **Functional Components**: Use functional components with React hooks.
-- **Code Comments**: Add comments to explain complex logic.
-- **Documentation**: Update documentation for any new features or changes.
-- **Testing**: Test your changes with multiple repositories and formats.
-
-## License
-
-GitScribe is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
-
-## Additional Sections
+## Zusätzliche Abschnitte
 
 ### FAQ
+- **F1: Wie richte ich GitScribe ein?**
+  A1: Um GitScribe einzurichten, klonen Sie das Repository, installieren Sie Abhängigkeiten mit npm, konfigurieren Sie Ihre Umgebungsvariablen und starten Sie den Entwicklungsserver mit `npm run dev`.
 
-**Q1: How do I set up my OpenAI API key?**
+- **F2: Kann ich GitScribe für private Repositories verwenden?**
+  A2: Ja, GitScribe unterstützt private Repositories. Stellen Sie sicher, dass Ihr GitHub-Token die erforderlichen Berechtigungen hat, um auf private Repositories zuzugreifen.
 
-A1: Add your OpenAI API key to the `.env` file as `VITE_OPENAI_API_KEY` or enter it in the application settings. The key is stored securely in your browser's localStorage when entered through the UI, or you can set it as an environment variable for build-time configuration. Make sure your API key has sufficient credits and access to the models you want to use (GPT-4o, GPT-4o-mini, etc.).
+- **F3: In welche Formate kann ich Dokumentationen exportieren?**
+  A3: GitScribe ermöglicht den Export von Dokumentationen in mehreren Formaten, einschließlich Markdown, PDF und HTML, um verschiedenen Anwendungsfällen gerecht zu werden.
 
-**Q2: Can I use GitScribe with private repositories?**
+- **F4: Wie funktioniert der KI-Assistent?**
+  A4: Der KI-Assistent verwendet fortschrittliche Algorithmen, um Ihre Eingaben zu analysieren und Inhaltsvorschläge zu machen, die Ihnen helfen, schnell hochwertige Dokumentationen zu erstellen.
 
-A2: Yes, you can use GitScribe with private repositories by providing a GitHub Personal Access Token with the `repo` scope. The token allows GitScribe to access private repository contents, commit documentation, and perform other GitHub operations. You can set the token in the UI (stored in localStorage) or via the `VITE_GITHUB_TOKEN` environment variable.
+- **F5: Gibt es Unterstützung für mehrsprachige Dokumentationen?**
+  A5: Ja, GitScribe bietet mehrsprachige Unterstützung, sodass Sie Dokumentationen in verschiedenen Sprachen erstellen und ein breiteres Publikum erreichen können.
 
-**Q3: What OpenAI models are supported?**
+### Fehlersuche
+- **API-Fehler**: Wenn Sie auf API-Fehler stoßen, stellen Sie sicher, dass Ihr GitHub-Token gültig ist und die erforderlichen Berechtigungen hat.
+  
+- **Authentifizierungsprobleme**: Überprüfen Sie Ihre Anmeldeinformationen und stellen Sie sicher, dass sie korrekt in der `.env`-Datei festgelegt sind.
 
-A3: GitScribe supports all OpenAI chat models including GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-4, and GPT-3.5-turbo. You can select the model in the UI before running the workflow. GPT-4o-mini is recommended for cost-effective generation, while GPT-4o provides the highest quality for complex documentation. The system automatically adjusts token limits based on the selected model.
+- **Ratenbegrenzung**: Wenn Sie eine Ratenbegrenzung erfahren, ziehen Sie in Betracht, exponentielles Backoff in Ihren API-Anfragen zu implementieren oder Ihren API-Plan zu aktualisieren.
 
-**Q4: How long does documentation generation take?**
+- **Build-Probleme**: Wenn der Build fehlschlägt, überprüfen Sie die Fehlermeldungen auf fehlende Abhängigkeiten oder Syntaxfehler in Ihrem Code.
 
-A4: Generation time depends on repository size, selected formats, number of sections, and the chosen model. Small repositories (under 50 files) typically take 2-5 minutes, medium repositories (50-200 files) take 5-15 minutes, and large repositories (200+ files) can take 15-30 minutes or more. The system processes repositories in parallel when multiple repos are selected, which can reduce total time for batch operations.
+- **Leistungsprobleme**: Optimieren Sie Ihren Code und ziehen Sie in Betracht, das Speicherlimit für Node.js zu erhöhen, wenn Sie Leistungsprobleme haben.
 
-**Q5: Can I customize the documentation style and format?**
+### Bekannte Probleme
+- **PDF-Exportbeschränkungen**: Die PDF-Exportfunktion kann Einschränkungen in der Formatierung komplexer Dokumente haben. Ziehen Sie in Betracht, Markdown oder HTML für ausgeklügeltere Layouts zu verwenden.
 
-A5: Yes, GitScribe offers extensive customization options. You can choose from multiple output formats (Markdown, HTML, MDX, OpenAPI, PDF), select specific documentation sections (README, Architecture, API, Components, Testing & CI/CD, Changelog), choose documentation depth (basic, detailed, comprehensive), and select the language (English, French, German). The system also allows you to edit generated documentation using the AI Assistant before committing.
+- **Workflow-Zeitüberschreitungen**: Lang laufende Workflows können Zeitüberschreitungen erfahren. Optimieren Sie Ihre Prozesse oder teilen Sie sie in kleinere Aufgaben auf, um dieses Problem zu vermeiden.
 
-**Q6: How does the RAG (Retrieval-Augmented Generation) system work?**
+- **CORS-Probleme**: Probleme mit Cross-Origin Resource Sharing (CORS) können auftreten, wenn auf externe APIs zugegriffen wird. Stellen Sie sicher, dass Ihr Server so konfiguriert ist, dass er Cross-Origin-Anfragen zulässt.
 
-A6: GitScribe uses RAG to provide AI agents with relevant code context when generating documentation. The system creates vector embeddings of your codebase, stores them in a vector database, and retrieves semantically similar code snippets when generating documentation. This allows the AI to reference actual code examples, understand project structure, and generate more accurate, context-aware documentation. The RAG system uses 10-20 code chunks per documentation section to ensure comprehensive context.
+- **Token-Limits**: Seien Sie sich der Limits für GitHub API-Token bewusst, die Ihre Fähigkeit beeinträchtigen können, auf Repositories zuzugreifen, wenn sie überschritten werden.
 
-**Q7: What happens if documentation generation fails?**
+- **Übersetzungsqualität**: Die Qualität der Übersetzungen kann je nach Sprache und Kontext variieren. Überprüfen Sie die Übersetzungen auf Genauigkeit, bevor Sie sie veröffentlichen.
 
-A7: If generation fails, GitScribe provides detailed error messages in the console and UI. Common causes include invalid API keys, rate limiting, network issues, or repository access problems. The system includes retry logic for transient failures and allows you to resume from the last successful step. You can also generate documentation for individual repositories if batch processing fails, and the system saves progress so you don't lose work.
+### Fahrplan
+- **Zusätzliche Formate**: Implementierung der Unterstützung für zusätzliche Dokumentationsformate wie LaTeX und Word, um ein breiteres Publikum anzusprechen.
 
-### Troubleshooting
+- **Anpassbare Workflows**: Einführung anpassbarer Workflows, die es Benutzern ermöglichen, ihre Dokumentationsprozesse entsprechend ihren spezifischen Bedürfnissen zu definieren.
 
-- **OpenAI API Key Error**: Ensure the key is set in your `.env` file and is valid. Check that the key starts with "sk-" and hasn't expired. Verify your OpenAI account has sufficient credits. If using the UI, check that the key was saved correctly in localStorage.
+- **Weitere Git-Anbieter**: Erweiterung der Unterstützung für zusätzliche Git-Anbieter über GitHub hinaus, wie GitLab und Bitbucket.
 
-- **GitHub Rate Limiting**: Use a GitHub token to increase rate limits from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated). Set the token in the UI or via `VITE_GITHUB_TOKEN` environment variable. If you still hit rate limits, wait for the rate limit window to reset or use a different token.
+- **Webhook-Unterstützung**: Implementierung von Webhook-Unterstützung für Echtzeit-Updates und Benachrichtigungen zu Dokumentationsänderungen.
 
-- **Private Repository Access**: Ensure your token has the `repo` scope for private repositories. For organization repos, you may need `read:org` scope. Verify token permissions in GitHub Settings and ensure the token hasn't expired or been revoked.
+- **Zusammenarbeitsfunktionen**: Verbesserung der Zusammenarbeitsfunktionen, damit mehrere Benutzer gleichzeitig an der Dokumentation arbeiten können, mit Versionskontrolle.
 
-- **Documentation Quality Issues**: If generated documentation seems generic or inaccurate, try using GPT-4o instead of GPT-4o-mini for better quality. Ensure your repository has sufficient code and structure for the AI to analyze. You can also use the AI Assistant to refine generated content.
+- **Erweiterte Anpassung**: Bereitstellung erweiterter Anpassungsoptionen für Dokumentationsstile und -vorlagen, um die Markenidentität der Benutzer zu entsprechen.
 
-- **Vector Store Not Working**: If RAG context retrieval fails, check that the repository has been properly indexed. The system automatically indexes repositories during the discovery phase, but you may need to wait for indexing to complete. Large repositories may take longer to index.
+- **Leistungsoptimierungen**: Kontinuierliche Optimierung der Anwendung für bessere Leistung und Reaktionsfähigkeit, insbesondere bei großen Dokumentationsmengen.
 
-- **Build Errors**: If you encounter build errors, ensure you're using Node.js 18+ and have all dependencies installed. Clear `node_modules` and reinstall if needed. Check for TypeScript errors and resolve any type mismatches. Review the build output for specific error messages.
+- **Analysen**: Einführung von Analysefunktionen zur Verfolgung der Nutzung und Interaktion mit der Dokumentation, um Einblicke in Benutzerinteraktionen zu erhalten.
 
-### Known Issues
-
-- **PDF Export Limitations**: Large documentation (over 50,000 words) may cause memory issues during PDF export in some browsers. Workaround: Export individual sections or use HTML export format instead. The system is optimized for documentation up to 30,000 words per section.
-
-- **Agent Workflow Stuck**: If the workflow appears stuck, ensure all prerequisites are met (API keys, network connectivity) and check the browser console for detailed logs. The system includes timeout handling, but very large repositories may take longer than expected. You can cancel and restart the workflow if needed.
-
-- **CORS Issues with GitHub API**: Some browsers may have strict CORS policies. The application handles this through proper authentication, but if issues persist, ensure you're using a modern browser (Chrome, Firefox, Safari, Edge) with JavaScript enabled.
-
-- **Token Limit for Very Large Repositories**: Repositories with thousands of files may exceed token limits when generating comprehensive documentation. The system automatically chunks content, but for extremely large codebases, consider generating documentation for specific sections or directories rather than the entire repository.
-
-- **Language Translation Quality**: While GitScribe supports multiple languages, the translation quality depends on the underlying AI model. English documentation typically has the highest quality, with other languages providing good but not perfect translations. Manual review is recommended for non-English documentation.
-
-- **OpenAPI Generation Accuracy**: OpenAPI specification generation relies on code analysis and may not capture all API endpoints perfectly, especially for dynamically generated routes. Review and refine generated OpenAPI specs before using them in production.
-
-### Roadmap
-
-- **Additional Output Formats**: Support for AsciiDoc, reStructuredText, and DocBook formats to cover more documentation ecosystems and publishing platforms.
-
-- **Custom Agent Workflows**: Allow users to define custom agent workflows with configurable steps, conditions, and agent sequences. This will enable teams to create documentation pipelines tailored to their specific needs and processes.
-
-- **Integration with More Git Providers**: Support for GitLab, Bitbucket, and other Git hosting platforms. This will expand GitScribe's reach and make it accessible to teams using different version control systems.
-
-- **Webhook Support**: Automatic documentation updates via webhooks when repositories are updated. This will enable continuous documentation generation as part of CI/CD pipelines, ensuring documentation stays synchronized with code changes.
-
-- **Team Collaboration Features**: Enhance collaboration capabilities with features like documentation review workflows, team annotations, approval processes, and integration with project management tools.
-
-- **Advanced Customization**: Template system for custom documentation structures, style customization options, and the ability to define custom documentation sections beyond the standard set.
-
-- **Performance Optimizations**: Caching mechanisms for repository analysis, incremental updates for changed files only, and parallel processing optimizations for faster generation of large documentation sets.
-
-- **Analytics and Insights**: Documentation quality metrics, usage analytics, and insights into documentation coverage and completeness across repositories.
-
----
-
-**Made with ❤️ using React, TypeScript, and AI**
-
-This comprehensive documentation aims to provide a detailed understanding of GitScribe, its features, and how to effectively use and contribute to the project. For further assistance, please open an issue on GitHub or contact the maintainers.
+Diese umfassende README zielt darauf ab, Entwicklern und Benutzern alle notwendigen Informationen zur Verfügung zu stellen, um GitScribe effektiv zu nutzen und sicherzustellen, dass sie eine reibungslose Erfahrung bei der Erstellung und Verwaltung von Dokumentationen haben. Durch die Befolgung der bereitgestellten Richtlinien und Beispiele können Benutzer das Potenzial von GitScribe maximieren und ihre Dokumentationspraktiken verbessern.
+```
