@@ -30,7 +30,8 @@ export type DocSectionType =
   | 'API'
   | 'COMPONENTS'
   | 'TESTING_CI'
-  | 'CHANGELOG';
+  | 'CHANGELOG'
+  | 'INLINE_CODE';
 
 /**
  * Documentation Section

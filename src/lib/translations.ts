@@ -612,12 +612,14 @@ export type TranslationKey =
   | 'sectionComponents'
   | 'sectionTestingCicd'
   | 'sectionChangelog'
+  | 'sectionInlineCode'
   | 'sectionReadmeShort'
   | 'sectionArchitectureShort'
   | 'sectionApiReferenceShort'
   | 'sectionComponentsShort'
   | 'sectionTestingCicdShort'
   | 'sectionChangelogShort'
+  | 'sectionInlineCodeShort'
   | 'aiPoweredDocumentationGenerationForGitHub'
   | 'requiredForAiPoweredDocumentationGeneration'
   | 'functionFetchUserRepos'
@@ -1258,12 +1260,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Components',
     sectionTestingCicd: 'Testing & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Inline Code Documentation',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'AI-powered documentation generation for GitHub repositories',
     requiredForAiPoweredDocumentationGeneration: 'Required for AI-powered documentation generation.',
     functionFetchUserRepos: 'fetchUserRepos',
@@ -1901,12 +1905,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Composants',
     sectionTestingCicd: 'Tests & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Documentation de Code Inline',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'Génération de documentation alimentée par IA pour les dépôts GitHub',
     requiredForAiPoweredDocumentationGeneration: 'Requis pour la génération de documentation alimentée par IA.',
     functionFetchUserRepos: 'fetchUserRepos',
@@ -2544,12 +2550,14 @@ const translations: Record<DocLanguage, Record<TranslationKey, string>> = {
     sectionComponents: 'Komponenten',
     sectionTestingCicd: 'Tests & CI/CD',
     sectionChangelog: 'Changelog',
+    sectionInlineCode: 'Inline-Code-Dokumentation',
     sectionReadmeShort: 'README',
     sectionArchitectureShort: 'ARCH',
     sectionApiReferenceShort: 'API',
     sectionComponentsShort: 'COMP',
     sectionTestingCicdShort: 'TEST',
     sectionChangelogShort: 'CHG',
+    sectionInlineCodeShort: 'CODE',
     aiPoweredDocumentationGenerationForGitHub: 'KI-gestützte Dokumentationsgenerierung für GitHub-Repositories',
     requiredForAiPoweredDocumentationGeneration: 'Erforderlich für KI-gestützte Dokumentationsgenerierung.',
     functionFetchUserRepos: 'fetchUserRepos',

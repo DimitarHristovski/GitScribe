@@ -11,6 +11,7 @@ import { callLangChain } from '../langchain-service';
 import { DocumentationPlan } from './types';
 import { retrieveContext } from '../../rag/index';
 import { generateDirectoryTree, parseGitHubUrl, getGitHubToken } from '../github-service';
+import { generateCursorStyleDocs } from '../AI-style-docs';
 
 export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentState>> {
   console.log('[DocsWriter] Starting documentation generation...');
@@ -266,6 +267,8 @@ function getSectionTitle(sectionType: DocSectionType): string {
       return 'Testing & CI/CD';
     case 'CHANGELOG':
       return 'Changelog';
+    case 'INLINE_CODE':
+      return 'Inline Code Documentation';
     default:
       return 'Documentation';
   }
@@ -1085,7 +1088,26 @@ IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thoro
 Focus on practical testing and deployment workflows with complete information.`;
       break;
       
-    case 'CHANGELOG':
+      case 'INLINE_CODE':
+        // Use AI-style-docs for inline code documentation
+        try {
+          console.log(`[DocsWriter] Generating inline code documentation for ${repoFullName}...`);
+          const inlineDocs = await generateCursorStyleDocs(plan.repo, {
+            includeInlineDocs: true,
+            includeFunctionDocs: true,
+            includeClassDocs: true,
+            includeExamples: true,
+            includeTypes: true,
+            language: 'typescript', // Can be made configurable later
+          });
+          console.log(`[DocsWriter] Generated inline code documentation: ${inlineDocs.length} characters`);
+          return inlineDocs;
+        } catch (error) {
+          console.error(`[DocsWriter] Failed to generate inline code documentation:`, error);
+          return `# Inline Code Documentation\n\n*Failed to generate inline code documentation. Please check the console for errors.*`;
+        }
+        
+      case 'CHANGELOG':
       sectionPrompt = `Generate a Changelog documentation for "${repoFullName}".
 ${languageInstruction}
 
@@ -1172,6 +1194,7 @@ Format it as a standard changelog with version numbers and dates, but make it co
       'COMPONENTS': { min: 5000, target: 6000 },
       'TESTING_CI': { min: 3000, target: 0 },
       'CHANGELOG': { min: 0, target: 3000 },
+      'INLINE_CODE': { min: 0, target: 0 }, // Inline code docs don't have word count requirements
     };
     
     const { min: minWords, target: targetWords } = wordCountTargets[sectionType] || { min: 0, target: 4500 };
@@ -1362,11 +1385,12 @@ Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Qu
     
     // Get word count targets (same as defined above)
     const wordCountTargetsForValidation: Record<DocSectionType, { min: number; target: number }> = {
-      'README': { min: 4500, target: 5000 },
+      'README': { min: 1500, target: 5000 },
       'ARCHITECTURE': { min: 0, target: 4500 },
       'API': { min: 0, target: 4500 },
-      'COMPONENTS': { min: 5000, target: 6000 },
-      'TESTING_CI': { min: 3000, target: 0 },
+      'COMPONENTS': { min: 1000, target: 6000 },
+      'INLINE_CODE': { min: 0, target: 2500 },
+      'TESTING_CI': { min: 1000, target: 2000 },
       'CHANGELOG': { min: 0, target: 3000 },
     };
     

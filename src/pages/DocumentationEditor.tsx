@@ -1108,6 +1108,8 @@ ${documentation.split('\n').map(line => {
                                    sectionType === 'API' ? t('sectionApiReference') :
                                    sectionType === 'COMPONENTS' ? t('sectionComponents') :
                                    sectionType === 'TESTING_CI' ? t('sectionTestingCicd') :
+                                   sectionType === 'CHANGELOG' ? t('sectionChangelog') :
+                                   sectionType === 'INLINE_CODE' ? t('sectionInlineCode') :
                                    t('sectionChangelog')}
                           >
                             {sectionType === 'README' ? t('sectionReadmeShort') :
@@ -1115,6 +1117,8 @@ ${documentation.split('\n').map(line => {
                              sectionType === 'API' ? t('sectionApiReferenceShort') :
                              sectionType === 'COMPONENTS' ? t('sectionComponentsShort') :
                              sectionType === 'TESTING_CI' ? t('sectionTestingCicdShort') :
+                             sectionType === 'CHANGELOG' ? t('sectionChangelogShort') :
+                             sectionType === 'INLINE_CODE' ? t('sectionInlineCodeShort') :
                              t('sectionChangelogShort')}
                           </button>
                         ))}
