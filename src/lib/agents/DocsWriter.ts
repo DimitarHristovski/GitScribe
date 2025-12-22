@@ -11,10 +11,11 @@ import { callLangChain } from '../langchain-service';
 import { DocumentationPlan } from './types';
 import { retrieveContext } from '../../rag/index';
 import { generateDirectoryTree, parseGitHubUrl, getGitHubToken } from '../github-service';
-import { generateCursorStyleDocs } from '../AI-style-docs';
+// Note: INLINE_CODE section type is supported but AI-style-docs.ts has been removed
+// The INLINE_CODE case returns a message that the feature is no longer available
 
 export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentState>> {
-  console.log('[DocsWriter] Starting documentation generation...');
+  console.debug('[DocsWriter] Starting documentation generation...');
   
   const updates: Partial<AgentState> = {
     currentStep: AgentStep.WRITING,
@@ -47,13 +48,14 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
     const modelToUse = selectedModel;
     let baseMarkdown = '';
     try {
-      console.log(`[DocsWriter] Starting generation for ${repoFullName}`);
-      console.log(`[DocsWriter] Formats: ${selectedFormats.join(', ')}, Sections: ${selectedSectionTypes.join(', ')}`);
+      console.debug(`[DocsWriter] Starting generation for ${repoFullName} - Formats: ${selectedFormats.join(', ')}, Sections: ${selectedSectionTypes.join(', ')}`);
 
       // Generate base markdown documentation (for reference)
       const githubUrl = plan.repo.htmlUrl || `${plan.repo.owner}/${plan.repo.name}`;
       
       try {
+        // Note: generateDocumentationFromGitHub may show 404 errors in browser console for optional files
+        // (project.json, next.config.ts, tailwind.config.js, etc.) - these are expected and handled gracefully
         baseMarkdown = await generateDocumentationFromGitHub(githubUrl, {
           format: 'markdown',
           includeCode: true,
@@ -62,9 +64,14 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
           depth: plan.style === 'comprehensive' ? 'comprehensive' : 
                  plan.style === 'technical' ? 'detailed' : 'basic',
         });
-        console.log(`[DocsWriter] Base markdown generated for ${repoFullName}, length: ${baseMarkdown.length}`);
+        console.debug(`[DocsWriter] Base markdown generated: ${baseMarkdown.length} chars`);
       } catch (baseError: any) {
-        console.error(`[DocsWriter] Failed to generate base markdown for ${repoFullName}:`, baseError);
+        // Only log unexpected errors (not 404s for optional files)
+        if (!baseError?.message?.includes('404') && !baseError?.message?.includes('Not Found')) {
+          console.error(`[DocsWriter] Failed to generate base markdown for ${repoFullName}:`, baseError);
+        } else {
+          console.debug(`[DocsWriter] Base markdown generation skipped optional files (expected 404s)`);
+        }
         baseMarkdown = `# ${plan.repo.name}\n\n${plan.repo.description || 'Documentation for ' + repoFullName}\n\n*Note: Base documentation generation failed. Please check repository access.*`;
       }
 
@@ -77,7 +84,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
       for (const sectionType of selectedSectionTypes) {
         // Generate section-specific content using AI
         // Use the user's selected model (no auto-upgrade)
-        console.log(`[DocsWriter] Generating ${sectionType} content for ${repoFullName}...`);
+        console.debug(`[DocsWriter] Generating ${sectionType}...`);
         const sectionSpecificContent = await generateSectionSpecificContent(
           sectionType,
           githubUrl,
@@ -89,11 +96,10 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
         );
         
         const sectionWordCount = sectionSpecificContent.split(/\s+/).length;
-        const sectionCharCount = sectionSpecificContent.length;
-        console.log(`[DocsWriter] Generated ${sectionType} content: ${sectionWordCount} words, ${sectionCharCount} characters`);
-        
         if (sectionWordCount < 1000) {
-          console.error(`[DocsWriter] WARNING: ${sectionType} content is very short (${sectionWordCount} words). Expected 0-6000+ words.`);
+          console.warn(`[DocsWriter] ⚠️ ${sectionType} content is short: ${sectionWordCount} words (expected 0-6000+)`);
+        } else {
+          console.debug(`[DocsWriter] ✓ ${sectionType}: ${sectionWordCount} words`);
         }
 
         for (const format of selectedFormats) {
@@ -169,7 +175,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
           sections.push(fallbackSection);
           generatedDocs.sections = sections;
           markdownContent = baseMarkdown;
-          console.log(`[DocsWriter] Using baseMarkdown fallback for ${repoFullName}`);
+          console.debug(`[DocsWriter] Using baseMarkdown fallback`);
         } else {
           console.error(`[DocsWriter] No documentation generated for ${repoFullName} - baseMarkdown is also empty`);
           // Still create an empty entry so the workflow knows we tried
@@ -184,7 +190,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
         currentRepo: repoFullName,
         currentAgent: 'DocsWriter',
       };
-      console.log(`[DocsWriter] Completed generation for ${repoFullName} (${completed}/${total})`);
+      console.debug(`[DocsWriter] Completed ${repoFullName} (${completed}/${total})`);
 
       return { 
         repoFullName, 
@@ -236,8 +242,7 @@ export async function docsWriterAgent(state: AgentState): Promise<Partial<AgentS
     currentAgent: 'DocsWriter',
   };
 
-  console.log(`[DocsWriter] Completed generation for ${docs.size} repositories`);
-  console.log(`[DocsWriter] Generated docs map size: ${docs.size}, Full docs map size: ${generatedDocsMap.size}`);
+  console.log(`[DocsWriter] ✓ Completed: ${docs.size} repositories`);
   
   if (docs.size === 0 && generatedDocsMap.size === 0) {
     console.error('[DocsWriter] WARNING: No documentation was generated for any repository!');
@@ -267,8 +272,7 @@ function getSectionTitle(sectionType: DocSectionType): string {
       return 'Testing & CI/CD';
     case 'CHANGELOG':
       return 'Changelog';
-    case 'INLINE_CODE':
-      return 'Inline Code Documentation';
+    
     default:
       return 'Documentation';
   }
@@ -292,24 +296,35 @@ async function generateSectionSpecificContent(
   // Use more chunks for comprehensive documentation (like Cursor AI style)
   // More chunks = more code examples, better context, more detailed documentation
   let ragContext = '';
+  
+  // Check if repository is indexed
   try {
-    console.log(`[DocsWriter] Retrieving RAG context for ${repoFullName} (${sectionType})...`);
-    
+    const { isRepositoryIndexed } = await import('../../rag/index');
+    const isIndexed = await isRepositoryIndexed(repoFullName);
+    if (!isIndexed) {
+      console.warn(`[DocsWriter] ⚠️ Repository "${repoFullName}" is not indexed. RAG context will be empty.`);
+      console.warn(`[DocsWriter] This may happen if indexing failed during the Discovery/Analysis phase.`);
+      console.warn(`[DocsWriter] Documentation will rely on Repository Analysis and Directory Structure only.`);
+    } else {
+      console.debug(`[DocsWriter] Repository indexed, retrieving RAG context...`);
+    }
+  } catch (indexCheckError) {
+    console.warn(`[DocsWriter] Could not verify indexing status:`, indexCheckError);
+  }
+  
+  try {
     // First, get database context - schemas, migrations, seed data, mock data
     // This is crucial for understanding what the application does
     const databaseQuery = `Database schema, migrations, seed data, mock data, models, entities. What data does this application store and manage? What are the main entities, tables, or data models?`;
     const databaseContext = await retrieveContext(databaseQuery, repoFullName, 8);
-    console.log(`[DocsWriter] Database context retrieved: ${databaseContext ? `${databaseContext.length} chars` : 'EMPTY'}`);
     
     // Second, get context about the app's purpose and main functionality
     const purposeQuery = `What does this application do? What is its main purpose, role, and core functionality? Main entry points, app initialization, and primary features.`;
     const purposeContext = await retrieveContext(purposeQuery, repoFullName, 8);
-    console.log(`[DocsWriter] Purpose context retrieved: ${purposeContext ? `${purposeContext.length} chars` : 'EMPTY'}`);
     
     // Third, get general code context for the specific section
     const sectionQuery = `Generate ${sectionType} documentation for ${repoFullName}. Code structure, architecture, components, APIs, and implementation details.`;
     const sectionContext = await retrieveContext(sectionQuery, repoFullName, 8);
-    console.log(`[DocsWriter] Section context retrieved: ${sectionContext ? `${sectionContext.length} chars` : 'EMPTY'}`);
     
     // Combine all contexts (database context is most important for understanding the app)
     // Note: retrieveContext already includes "Relevant code context:" header, so we don't duplicate it
@@ -317,11 +332,18 @@ async function generateSectionSpecificContent(
                  (purposeContext ? `Application Purpose:${purposeContext}\n\n` : '') +
                  (sectionContext ? `Code Structure:${sectionContext}` : '');
     
-    console.log(`[DocsWriter] Combined RAG context: ${ragContext ? `${ragContext.length} chars` : 'EMPTY'}`);
+    if (ragContext && ragContext.trim().length > 100) {
+      console.debug(`[DocsWriter] RAG context: ${ragContext.length} chars`);
+    }
     
     if (!ragContext || ragContext.trim().length < 100) {
-      console.error(`[DocsWriter] WARNING: RAG context is empty or too short (${ragContext.length} chars). The repository may not be indexed, or similarity search returned no results.`);
-      console.error(`[DocsWriter] This will cause the AI to invent content instead of documenting actual code.`);
+      console.error(`[DocsWriter] ⚠️ CRITICAL WARNING: RAG context is empty or too short (${ragContext.length} chars).`);
+      console.error(`[DocsWriter] Possible causes:`);
+      console.error(`[DocsWriter] 1. Repository "${repoFullName}" may not be indexed yet`);
+      console.error(`[DocsWriter] 2. Similarity search returned no results (repository may be empty or have no code)`);
+      console.error(`[DocsWriter] 3. RAG indexing may have failed during the Discovery/Analysis phase`);
+      console.error(`[DocsWriter] ⚠️ Without RAG context, the AI will rely on Repository Analysis and Directory Structure only.`);
+      console.error(`[DocsWriter] ⚠️ This may result in less accurate documentation. Consider re-running the workflow to ensure indexing completes.`);
     }
   } catch (error) {
     console.error(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);
@@ -332,7 +354,7 @@ async function generateSectionSpecificContent(
         repoFullName,
         20
       );
-      console.log(`[DocsWriter] Fallback RAG context: ${ragContext ? `${ragContext.length} chars` : 'EMPTY'}`);
+      console.debug(`[DocsWriter] Fallback RAG context: ${ragContext ? `${ragContext.length} chars` : 'EMPTY'}`);
     } catch (fallbackError) {
       console.error(`[DocsWriter] Fallback RAG context retrieval also failed:`, fallbackError);
       ragContext = '';
@@ -381,25 +403,52 @@ ${directoryTree ? `\nComplete Directory Structure:\n\`\`\`\n${directoryTree}\`\`
   
   switch (sectionType) {
     case 'README':
-      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" following the EXACT structure and style of professional open-source project documentation (like the GitScribe DOCUMENTATION.md example - 600-700+ lines, 4500-5000+ words, comprehensive and detailed).
+      sectionPrompt = `Generate a comprehensive README.md for the repository "${repoFullName}" following professional open-source project documentation standards (comprehensive, detailed, 4500-5000+ words).
 ${languageInstruction}
 
-${ragContext ? `\n\n=== CRITICAL: ACTUAL CODE FROM REPOSITORY (YOUR ONLY SOURCE OF TRUTH) ===\n${ragContext}\n=== END OF ACTUAL CODE ===\n\n` : '\n\n⚠️ WARNING: NO RAG CONTEXT AVAILABLE - Repository may not be indexed. You MUST NOT invent content. Only document what you can verify from repository analysis.\n\n'}
+${ragContext ? `\n\n================================================================================
+!!! CRITICAL: ACTUAL CODE FROM REPOSITORY - YOUR ONLY SOURCE OF TRUTH !!!
+================================================================================
+
+EVERYTHING BELOW THIS LINE IS REAL CODE FROM THE REPOSITORY
+YOU CAN ONLY DOCUMENT WHAT YOU SEE HERE - NOTHING ELSE
+IF IT'S NOT IN THIS CODE, IT DOESN'T EXIST - DO NOT INVENT IT
+
+================================================================================
+
+${ragContext}
+
+================================================================================
+END OF ACTUAL CODE - DO NOT DOCUMENT ANYTHING NOT SHOWN ABOVE
+================================================================================\n\n` : `\n\n================================================================================
+!!! CRITICAL WARNING: NO RAG CONTEXT AVAILABLE !!!
+================================================================================
+
+Repository may not be indexed. You MUST NOT invent content.
+Only document what you can verify from repository analysis.
+If you cannot verify anything, write a short note explaining this.
+
+================================================================================\n\n`}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL FIRST STEP: Before generating any content, you MUST:
-1. Read the RAG context VERY CAREFULLY - this contains the ACTUAL code from the repository
-2. Identify what ACTUALLY exists in the code:
-   - Look for actual file paths, function names, class names, component names in the RAG context
-   - Find actual API endpoints, routes, handlers in the code
-   - Identify actual features by finding their implementation in the code
-   - Note the actual tech stack from the code (not assumptions)
-3. Create a list of ONLY the features/components/APIs you can VERIFY exist in the RAG context
-4. DO NOT proceed until you have a verified list of what actually exists
+1. Read ALL available sources in priority order:
+   - RAG context (if available) - contains ACTUAL code from the repository
+   - Repository Analysis (if available) - contains keyFeatures, tech stack, summary
+   - Directory Structure (if available) - shows file organization and paths
+2. Identify what ACTUALLY exists from these sources:
+   - From RAG context: Look for file paths, function names, class names, component names, API endpoints
+   - From Repository Analysis: Use the keyFeatures list, tech stack, and summary
+   - From Directory Structure: Infer features from file paths and organization
+3. Create a verified list from ALL available sources (not just RAG context)
+4. If RAG context is empty but Repository Analysis has keyFeatures, use those as your verified list
+5. DO NOT proceed until you have a verified list from at least one source
 
 CRITICAL - YOU MUST FOLLOW THESE RULES STRICTLY:
 1. FOR EVERY FEATURE YOU DOCUMENT:
@@ -432,8 +481,9 @@ CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE README content based
 - Generate fresh, detailed documentation based on the actual code structure and purpose
 - Create comprehensive content that accurately describes what the application does and how it works
 - Use the reference only to understand documentation structure, not to copy content
-- Follow the EXACT structure and style of professional documentation (like GitScribe's DOCUMENTATION.md - comprehensive, detailed, 600-700+ lines, 4500-5000+ words)
+- Follow professional documentation standards (comprehensive, detailed, 4500-5000+ words)
 - MOST IMPORTANT: The Overview section MUST accurately explain what this application does based on the code context, not generic descriptions
+- CRITICAL: This documentation is for "${repoFullName}" - do NOT copy features, structure, or content from other projects. Generate unique documentation based ONLY on this repository's actual code.
 
 CRITICAL - DOCUMENT ONLY WHAT EXISTS:
 - DO NOT invent features, APIs, or components that don't exist in the codebase
@@ -443,50 +493,41 @@ CRITICAL - DOCUMENT ONLY WHAT EXISTS:
 - If you cannot find evidence of a feature in the RAG context, DO NOT include it - skip it entirely
 - Base ALL feature descriptions on actual code, not assumptions or examples from other projects
 - To reach the word count, expand on REAL features with more detail, examples, and explanations - do NOT invent new features
+- CRITICAL: If you have fewer features than needed for the word count, that's OK - document what EXISTS in extreme detail rather than inventing
+- REMEMBER: Short accurate documentation is BETTER than long invented documentation
 - If the repository has fewer features than the target count, document those features in EXTREME detail rather than inventing new ones
 
-Create an EXTENSIVE, COMPREHENSIVE README that MUST follow this EXACT structure (be thorough and detailed, match the style of DOCUMENTATION.md):
+Create an EXTENSIVE, COMPREHENSIVE README that follows professional documentation structure (be thorough and detailed):
 
 Start with:
 # README
 
 # [Project Name]: [Brief Description]
 
-Then follow this EXACT structure (matching DOCUMENTATION.md style):
+Then follow this professional structure (adapt sections based on what actually exists in this repository):
 
-## Project Title and Description
-
-### Overview
-- Write EXACTLY 3 comprehensive paragraphs explaining what the project does
-- First paragraph: Describe the project, its purpose, and key technologies (100-150 words)
-- Second paragraph: Explain the problem it solves and how it addresses pain points (100-150 words)
-- Third paragraph: Describe the architecture, approach, and key capabilities (100-150 words)
-- Be detailed and thorough (300-450 words total minimum)
-
-### Purpose and Goals
-- Write EXACTLY 3 comprehensive paragraphs
-- First paragraph: Explain the primary purpose and what problems it solves (100-150 words)
-- Second paragraph: Describe key goals, democratization, and accessibility (100-150 words)
-- Third paragraph: Explain additional goals like multi-language support and reducing cognitive load (100-150 words)
-- Be detailed and thorough (300-450 words total minimum)
-
-### Target Audience
-- Write EXACTLY 3 comprehensive paragraphs
-- First paragraph: Describe primary audience (developers, PMs, technical writers) and main benefits (100-150 words)
-- Second paragraph: Explain benefits for individual developers, open-source maintainers, and enterprise teams (100-150 words)
-- Third paragraph: Describe benefits for technical writers, project managers, and organizations onboarding (100-150 words)
-- Be detailed and thorough (300-450 words total minimum)
+## Overview
+- Write comprehensive paragraphs explaining what this project does based on the actual code
+- Describe the project, its purpose, and key technologies based on what you find in the RAG context
+- Explain what problem it solves based on the codebase analysis
+- Describe the architecture and approach based on the actual code structure
+- Be detailed and thorough, but base everything on the actual repository code, not generic descriptions
+- If the codebase is simple, write simpler descriptions. If it's complex, write more detailed descriptions
+- DO NOT use generic phrases like "democratize", "reduce cognitive load", or "multi-language support" unless the code actually shows these features
 
 ## Features
 
 ### Core Features
-- MANDATORY FIRST STEP: Extract features from RAG context before writing anything:
-  1. Go through the RAG context and list every function, class, component, API endpoint, or feature you can find
-  2. For each item, note the file path where it exists
-  3. Verify each item actually has implementation code (not just a name)
-  4. This verified list is the ONLY source of features you can document
-- Create a numbered list of ONLY the features you extracted and verified (could be 3, could be 20 - list exactly what exists)
+- CRITICAL: Extract features from ALL available sources before writing anything:
+  1. Go through RAG context (if available) and list every function, class, component, API endpoint, or feature you can find
+  2. If RAG context is empty, use Repository Analysis keyFeatures list as your verified features
+  3. Also check Directory Structure to identify additional features from file paths
+  4. For each item, note the file path where it exists (from RAG, analysis, or directory structure)
+  5. Verify each item has implementation code (RAG) or is listed in analysis (Repository Analysis keyFeatures are pre-verified)
+  6. This verified list from ALL sources is what you can document
+- Create a numbered list of the features you extracted and verified (could be 3, could be 20 - list exactly what exists)
 - DO NOT aim for a specific number - list what actually exists in the codebase
+- IMPORTANT: If Repository Analysis has keyFeatures, use those even if RAG context is empty
 - Each feature should have:
   - **Bold feature name** (the actual name from the code)
   - File path in parentheses: (src/path/to/file.ts)
@@ -496,20 +537,22 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
   1. **Feature Name** (src/path/to/file.ts): Detailed description explaining what the code actually does based on the implementation you see. [Additional sentences with more detail about how it works, what it does, examples from the code, etc.]
    
   2. **Another Feature** (src/another/path.ts): Another detailed description based on actual code implementation...
-- CRITICAL: If you cannot find a feature in the RAG context with its implementation, DO NOT include it. Skip it entirely.
+- CRITICAL: If you cannot find a feature in RAG context, Repository Analysis, or Directory Structure, DO NOT include it. Skip it entirely.
+- IMPORTANT: If Repository Analysis provides keyFeatures, those are pre-verified and can be used even if RAG context is empty.
 - IMPORTANT: If the repository has very few features (e.g., only 2-3), document those in EXTREME detail rather than inventing more. It's better to have 3 well-documented features than 10 invented ones.
 - To reach word count: Expand each verified feature with extensive detail about its implementation, usage, examples, edge cases, etc. - do NOT add invented features.
 
 ### Advanced Features
-- FIRST: Check the RAG context to see if there are any advanced/sophisticated features:
-  - Look for complex functions, advanced modules, sophisticated implementations
-  - Look for advanced configurations, optimizations, integrations
+- FIRST: Check ALL available sources to see if there are any advanced/sophisticated features:
+  - RAG context (if available): Look for complex functions, advanced modules, sophisticated implementations
+  - Repository Analysis (if available): Check for advanced features in keyFeatures or summary
+  - Directory Structure (if available): Look for advanced configurations, optimizations, integrations
   - Look for advanced patterns, architectures, or capabilities in the code
-- CRITICAL: If you find advanced features, create a numbered list of ONLY the advanced features you can verify exist in the code
+- CRITICAL: If you find advanced features from ANY source, create a numbered list of ONLY the advanced features you can verify exist
 - If you find 3 advanced features, list 3. If you find 8, list 8. If you find 0, SKIP THIS SECTION ENTIRELY.
 - If there are no advanced features in the codebase, DO NOT create this section. Simply skip it and move on to the next section.
 - Same format as Core Features (with code references) if features exist
-- CRITICAL: ONLY include features that you can VERIFY exist in the RAG context. If you cannot find any advanced features, DO NOT create this section - skip it completely.
+- CRITICAL: ONLY include features that you can VERIFY exist in RAG context, Repository Analysis, or Directory Structure. If you cannot find any advanced features, DO NOT create this section - skip it completely.
 
 ## Installation/Setup
 
@@ -533,11 +576,12 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
   5. Build for Production (with npm run build command)
 
 ### Troubleshooting
-- Create a bullet list of common issues
+- Create a bullet list of common issues based on what the codebase actually shows
 - Each item should have:
   - **Bold issue name**: Detailed solution with 2-3 sentences explaining the problem and how to fix it
-- Include AT LEAST 5-7 troubleshooting items with comprehensive solutions
-- Cover: API Key errors, Rate Limiting, Private Repository Access, CORS Issues, Build Failures, Timeout Issues, Memory Issues, etc.
+- Only include troubleshooting items that are relevant to THIS repository's actual setup and dependencies
+- Base issues on the actual code, dependencies, and configuration files found in the repository
+- DO NOT include generic issues like "API Key errors" or "Rate Limiting" unless the code actually uses APIs or has rate limiting
 
 ## Usage
 
@@ -560,8 +604,11 @@ Then follow this EXACT structure (matching DOCUMENTATION.md style):
 
 ## API/Function Examples
 
-- FIRST: Check the RAG context to identify what functions, classes, or APIs actually exist in the codebase
-- CRITICAL: Only document functions/classes/APIs that you can VERIFY exist in the RAG context
+- FIRST: Check ALL available sources to identify what functions, classes, or APIs actually exist:
+  - RAG context (if available): Extract function names, class names, API endpoints
+  - Repository Analysis (if available): Check keyFeatures and tech stack for API-related features
+  - Directory Structure (if available): Look for API routes, handlers, controllers
+- CRITICAL: Only document functions/classes/APIs that you can VERIFY exist in RAG context, Repository Analysis, or Directory Structure
 - If the repository has NO exported functions or APIs (e.g., it's a static website, a configuration repo, etc.), SKIP THIS SECTION ENTIRELY or note that this is not applicable
 - If the repository has functions/APIs, document them following this format:
 
@@ -605,7 +652,10 @@ For each major function/class that EXISTS, document with:
 ## Architecture Overview
 
 ### System Design
-- FIRST: Check the RAG context to understand what the actual architecture is
+- FIRST: Check ALL available sources to understand what the actual architecture is:
+  - RAG context (if available): Look for architecture patterns, system design
+  - Repository Analysis (if available): Use summary, tech stack, and complexity to understand architecture
+  - Directory Structure (if available): Infer architecture from file organization
 - Write comprehensive paragraphs explaining the high-level architecture based on what ACTUALLY exists in the codebase
 - DO NOT describe architectures that don't exist (e.g., don't mention "agent-based system" or "LangChain" if they're not in the code)
 - Describe what the code actually shows:
@@ -693,11 +743,14 @@ For each major function/class that EXISTS, document with:
 - Include issues like: PDF export limitations, workflow timeouts, CORS issues, token limits, translation quality, API generation accuracy, etc.
 
 ### Roadmap
-- FIRST: Check the RAG context, repository analysis, and any issues/PRs mentioned to see if there are actual roadmap items
+- FIRST: Check ALL available sources to see if there are actual roadmap items:
+  - RAG context (if available): Look for comments, TODOs, issues
+  - Repository Analysis (if available): Check summary and keyFeatures for future plans
+  - Directory Structure (if available): Look for planning documents, roadmap files
 - CRITICAL: ONLY include roadmap items that are ACTUALLY mentioned in:
-  - The codebase (comments, TODOs, issues)
-  - Repository analysis (if it mentions future plans)
-  - Any visible planning documents
+  - The codebase (comments, TODOs, issues) - from RAG context
+  - Repository analysis (if it mentions future plans) - from Repository Analysis
+  - Any visible planning documents - from Directory Structure
 - If there are roadmap items, create a bullet list with:
   - **Feature Name**: Detailed description (2-3 sentences) explaining what it will do and why it's valuable
 - If there are NO roadmap items mentioned anywhere:
@@ -707,7 +760,7 @@ For each major function/class that EXISTS, document with:
 - DO NOT invent roadmap items to reach a target number
 - It's better to skip this section or have fewer items than to invent features
 
-CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4500-5500 words (approximately 600-700+ lines like DOCUMENTATION.md). This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
+CRITICAL LENGTH REQUIREMENT: You MUST generate AT LEAST 4500-5500 words. This is NOT optional. The documentation MUST be comprehensive and extensive. Do NOT stop early or be brief. Continue generating until you have covered ALL aspects thoroughly.
 
 Length Enforcement:
 - Minimum: 4500 words / 600+ lines (approximately 6000-7500 tokens)
@@ -717,7 +770,8 @@ Length Enforcement:
 STRUCTURE REQUIREMENTS:
 - Follow the structure provided above, but ADAPT it based on what actually exists in the repository
 - Use proper markdown formatting (## for main sections, ### for subsections)
-- Include core sections (Overview, Purpose and Goals, Target Audience, Installation/Setup, Usage, etc.)
+- Include sections that are relevant to THIS repository (Overview, Installation/Setup, Usage, etc.)
+- DO NOT include "Purpose and Goals" or "Target Audience" unless the repository actually has documentation about these topics
 - For optional sections (Advanced Features, API/Function Examples, Component Relationships, Roadmap):
   - ONLY include them if the repository actually has those elements
   - If a section doesn't apply (e.g., no APIs, no components, no advanced features), SKIP IT or note that it's not applicable
@@ -730,29 +784,54 @@ STRUCTURE REQUIREMENTS:
 - CRITICAL: Document what EXISTS, not what you think should exist
 
 If you find yourself being brief or concise, STOP and expand. Add more:
-- More detailed explanations in each section (each paragraph should be 3-5 sentences, Overview/Purpose/Target Audience should have 3 paragraphs each)
-- More code examples (at least 3-5 per major function, document 5-7 functions total)
-- More use cases and scenarios
-- More troubleshooting items (7 items minimum with detailed solutions)
-- More FAQ entries (7 questions minimum with comprehensive answers)
-- More detailed architecture descriptions (3 paragraphs for System Design, detailed component list for Component Relationships)
-- More features in both Core and Advanced sections (14+ core features, 12+ advanced features)
-- More known issues (6 items minimum with workarounds)
-- More roadmap items (8 items minimum with detailed descriptions)
+- More detailed explanations in each section based on the actual code (each paragraph should be 3-5 sentences)
+- More code examples from the RAG context (document all major functions that actually exist)
+- More use cases and scenarios based on how the code is actually used
+- More troubleshooting items based on the actual setup and dependencies (only if relevant)
+- More FAQ entries based on common questions about this specific repository (only if relevant)
+- More detailed architecture descriptions based on the actual code structure
+- More features documented in detail (only features that actually exist in the code)
+- More known issues based on the codebase (only if they actually exist)
+- More roadmap items based on TODOs or issues in the code (only if they actually exist)
+- IMPORTANT: Do NOT add generic content. Everything must be based on the actual repository code.
 
-Style: Write in a professional, comprehensive style EXACTLY like the DOCUMENTATION.md example. Be thorough, detailed, and developer-friendly. Include extensive code snippets that show actual usage patterns from the codebase. Make it actionable and complete. Match the tone, structure, and level of detail of professional open-source project documentation.`;
+Style: Write in a professional, comprehensive style. Be thorough, detailed, and developer-friendly. Include extensive code snippets that show actual usage patterns from THIS repository's codebase. Make it actionable and complete. The documentation must be UNIQUE to "${repoFullName}" - do NOT copy structure, features, or content from other projects. Base everything on the actual code from this repository.`;
       break;
       
     case 'ARCHITECTURE':
       sectionPrompt = `Generate an Architecture documentation section for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
-${ragContext ? `\n\n=== CRITICAL: ACTUAL CODE FROM REPOSITORY (YOUR ONLY SOURCE OF TRUTH) ===\n${ragContext}\n=== END OF ACTUAL CODE ===\n\n` : '\n\n⚠️ WARNING: NO RAG CONTEXT AVAILABLE - Repository may not be indexed. You MUST NOT invent content. Only document what you can verify from repository analysis.\n\n'}
+${ragContext ? `\n\n================================================================================
+!!! CRITICAL: ACTUAL CODE FROM REPOSITORY - YOUR ONLY SOURCE OF TRUTH !!!
+================================================================================
+
+EVERYTHING BELOW THIS LINE IS REAL CODE FROM THE REPOSITORY
+YOU CAN ONLY DOCUMENT WHAT YOU SEE HERE - NOTHING ELSE
+IF IT'S NOT IN THIS CODE, IT DOESN'T EXIST - DO NOT INVENT IT
+
+================================================================================
+
+${ragContext}
+
+================================================================================
+END OF ACTUAL CODE - DO NOT DOCUMENT ANYTHING NOT SHOWN ABOVE
+================================================================================\n\n` : `\n\n================================================================================
+!!! CRITICAL WARNING: NO RAG CONTEXT AVAILABLE !!!
+================================================================================
+
+Repository may not be indexed. You MUST NOT invent content.
+Only document what you can verify from repository analysis.
+If you cannot verify anything, write a short note explaining this.
+
+================================================================================\n\n`}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Architecture content. DO NOT simply reformat or copy the reference documentation above. Instead:
 - Analyze the actual codebase using the RAG context and repository analysis
@@ -833,12 +912,36 @@ Style: Code-first approach like Cursor AI. Show actual code structures, class hi
       sectionPrompt = `Generate an API Reference documentation for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
-${ragContext ? `\n\n=== CRITICAL: ACTUAL CODE FROM REPOSITORY (YOUR ONLY SOURCE OF TRUTH) ===\n${ragContext}\n=== END OF ACTUAL CODE ===\n\n` : '\n\n⚠️ WARNING: NO RAG CONTEXT AVAILABLE - Repository may not be indexed. You MUST NOT invent content. Only document what you can verify from repository analysis.\n\n'}
+${ragContext ? `\n\n================================================================================
+!!! CRITICAL: ACTUAL CODE FROM REPOSITORY - YOUR ONLY SOURCE OF TRUTH !!!
+================================================================================
+
+EVERYTHING BELOW THIS LINE IS REAL CODE FROM THE REPOSITORY
+YOU CAN ONLY DOCUMENT WHAT YOU SEE HERE - NOTHING ELSE
+IF IT'S NOT IN THIS CODE, IT DOESN'T EXIST - DO NOT INVENT IT
+
+================================================================================
+
+${ragContext}
+
+================================================================================
+END OF ACTUAL CODE - DO NOT DOCUMENT ANYTHING NOT SHOWN ABOVE
+================================================================================\n\n` : `\n\n================================================================================
+!!! CRITICAL WARNING: NO RAG CONTEXT AVAILABLE !!!
+================================================================================
+
+Repository may not be indexed. You MUST NOT invent content.
+Only document what you can verify from repository analysis.
+If you cannot verify anything, write a short note explaining this.
+
+================================================================================\n\n`}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE API Reference content. DO NOT simply reformat or copy the reference documentation above. Instead:
 - Analyze the actual codebase using the RAG context and repository analysis
@@ -855,8 +958,11 @@ Create an EXTENSIVE, COMPREHENSIVE API Reference in Ai-Style that includes (be t
    - Common patterns
 
 2. **Function/Class Documentation** - For EVERY exported function/class that EXISTS in the codebase:
-   - FIRST: Extract all exported functions/classes from the RAG context
-   - Only document functions/classes that you can VERIFY exist in the code
+   - FIRST: Extract all exported functions/classes from ALL available sources:
+     - RAG context (if available): Extract function/class names
+     - Repository Analysis (if available): Check keyFeatures for API-related features
+     - Directory Structure (if available): Identify from file paths
+   - Only document functions/classes that you can VERIFY exist in the code from these sources
    - If the repository has NO exported functions/classes (e.g., it's a static site, config repo, etc.), adapt this section or note that APIs are not applicable
    - For each function/class that EXISTS, include:
      - Complete JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
@@ -928,12 +1034,36 @@ Style: Generate documentation similar to Cursor AI - include the actual code wit
       sectionPrompt = `Generate a Components documentation section for "${repoFullName}" in Ai-Style format.
 ${languageInstruction}
 
-${ragContext ? `\n\n=== CRITICAL: ACTUAL CODE FROM REPOSITORY (YOUR ONLY SOURCE OF TRUTH) ===\n${ragContext}\n=== END OF ACTUAL CODE ===\n\n` : '\n\n⚠️ WARNING: NO RAG CONTEXT AVAILABLE - Repository may not be indexed. You MUST NOT invent content. Only document what you can verify from repository analysis.\n\n'}
+${ragContext ? `\n\n================================================================================
+!!! CRITICAL: ACTUAL CODE FROM REPOSITORY - YOUR ONLY SOURCE OF TRUTH !!!
+================================================================================
+
+EVERYTHING BELOW THIS LINE IS REAL CODE FROM THE REPOSITORY
+YOU CAN ONLY DOCUMENT WHAT YOU SEE HERE - NOTHING ELSE
+IF IT'S NOT IN THIS CODE, IT DOESN'T EXIST - DO NOT INVENT IT
+
+================================================================================
+
+${ragContext}
+
+================================================================================
+END OF ACTUAL CODE - DO NOT DOCUMENT ANYTHING NOT SHOWN ABOVE
+================================================================================\n\n` : `\n\n================================================================================
+!!! CRITICAL WARNING: NO RAG CONTEXT AVAILABLE !!!
+================================================================================
+
+Repository may not be indexed. You MUST NOT invent content.
+Only document what you can verify from repository analysis.
+If you cannot verify anything, write a short note explaining this.
+
+================================================================================\n\n`}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Components content. DO NOT simply reformat or copy the reference documentation above. Instead:
 - Analyze the actual codebase using the RAG context and repository analysis
@@ -949,8 +1079,11 @@ Create an EXTENSIVE, COMPREHENSIVE Components document in Ai-Style that includes
    - Design principles
 
 2. **Component Documentation** - For EVERY component/class/module that EXISTS in the codebase:
-   - FIRST: Extract all components/modules from the RAG context
-   - Only document components/modules that you can VERIFY exist in the code
+   - FIRST: Extract all components/modules from ALL available sources:
+     - RAG context (if available): Extract component/module names
+     - Repository Analysis (if available): Check keyFeatures and structure for components
+     - Directory Structure (if available): Identify components from file paths
+   - Only document components/modules that you can VERIFY exist in the code from these sources
    - If the repository has NO components (e.g., it's a backend API, CLI tool, library without UI, etc.), adapt this section accordingly or note that UI components are not applicable
    - For each component/module that EXISTS, include:
      - Complete JSDoc/TSDoc style documentation with all standard tags
@@ -1022,8 +1155,10 @@ ${languageInstruction}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Testing & CI/CD content. DO NOT simply reformat or copy the reference documentation above. Instead:
 - Analyze the actual codebase using the RAG context and repository analysis
@@ -1088,33 +1223,17 @@ IMPORTANT: Generate EXTENSIVE documentation - aim for 3000-5000+ words. Be thoro
 Focus on practical testing and deployment workflows with complete information.`;
       break;
       
-      case 'INLINE_CODE':
-        // Use AI-style-docs for inline code documentation
-        try {
-          console.log(`[DocsWriter] Generating inline code documentation for ${repoFullName}...`);
-          const inlineDocs = await generateCursorStyleDocs(plan.repo, {
-            includeInlineDocs: true,
-            includeFunctionDocs: true,
-            includeClassDocs: true,
-            includeExamples: true,
-            includeTypes: true,
-            language: 'typescript', // Can be made configurable later
-          });
-          console.log(`[DocsWriter] Generated inline code documentation: ${inlineDocs.length} characters`);
-          return inlineDocs;
-        } catch (error) {
-          console.error(`[DocsWriter] Failed to generate inline code documentation:`, error);
-          return `# Inline Code Documentation\n\n*Failed to generate inline code documentation. Please check the console for errors.*`;
-        }
-        
+     
       case 'CHANGELOG':
       sectionPrompt = `Generate a Changelog documentation for "${repoFullName}".
 ${languageInstruction}
 
 ${analysisContext}
 
-Reference Documentation (for context only - DO NOT copy verbatim, use as reference to understand the project):
-${baseMarkdown.substring(0, 0)}${baseMarkdown.length > 0 ? '\n\n[... truncated for brevity, use RAG context and code analysis instead ...]' : ''}
+⚠️ IMPORTANT: The reference documentation below is ONLY for understanding documentation structure/style. DO NOT copy its content. DO NOT use it as a source of features. IGNORE any features mentioned in it that aren't in the RAG context above.
+
+Reference Documentation (STRUCTURE ONLY - IGNORE CONTENT):
+${baseMarkdown.length > 0 ? '\n\n[... reference documentation truncated - use ONLY the RAG context above for actual features ...]' : ''}
 
 CRITICAL: Generate COMPLETELY NEW, EXTENSIVE, COMPREHENSIVE Changelog content. DO NOT simply reformat or copy the reference documentation above. Instead:
 - Analyze the actual codebase using the RAG context and repository analysis
@@ -1173,8 +1292,8 @@ Format it as a standard changelog with version numbers and dates, but make it co
     // Get max tokens based on model FIRST, so we can use it in the prompt
     // GPT-4o and GPT-4o-mini both support up to 16,384 output tokens
     const getMaxTokensForModel = (model: string): number => {
-      if (model.includes('gpt-4o') || model.includes('gpt-5')) {
-        return 16384; // Max output tokens for GPT-4o/5 models (≈12,000 words)
+      if (model.includes('gpt-4o')) {
+        return 16384; // Max output tokens for GPT-4o models (≈12,000 words)
       } else if (model.startsWith('gpt-4')) {
         return 8192; // Max output tokens for GPT-4 models (≈6,000 words)
       } else if (model.startsWith('gpt-3.5')) {
@@ -1187,14 +1306,13 @@ Format it as a standard changelog with version numbers and dates, but make it co
     const estimatedWords = Math.floor(maxTokens * 0.75); // Rough estimate: 1 token ≈ 0.75 words
     
     // Define word count targets based on section type
-    const wordCountTargets: Record<DocSectionType, { min: number; target: number }> = {
-      'README': { min: 4500, target: 5000 },
+    const wordCountTargets: Partial<Record<DocSectionType, { min: number; target: number }>> = {
+      'README': { min: 0, target: 5000 },
       'ARCHITECTURE': { min: 0, target: 4500 },
       'API': { min: 0, target: 4500 },
-      'COMPONENTS': { min: 5000, target: 6000 },
-      'TESTING_CI': { min: 3000, target: 0 },
+      'COMPONENTS': { min: 0, target: 6000 },
+      'TESTING_CI': { min: 0, target: 1000 },
       'CHANGELOG': { min: 0, target: 3000 },
-      'INLINE_CODE': { min: 0, target: 0 }, // Inline code docs don't have word count requirements
     };
     
     const { min: minWords, target: targetWords } = wordCountTargets[sectionType] || { min: 0, target: 4500 };
@@ -1229,34 +1347,51 @@ Format it as a standard changelog with version numbers and dates, but make it co
 CRITICAL FIRST STEP - EXTRACT AND VERIFY (MANDATORY - DO NOT SKIP):
 BEFORE generating any documentation, you MUST complete this verification process:
 
-STEP 1: Extract actual code elements from RAG context:
-- Read the RAG context line by line
-- Extract: function names, class names, component names, API routes, file paths
-- Create a list: "Feature X found in file Y"
-- DO NOT proceed if you haven't created this list
+STEP 1: Extract features from ALL available sources (in priority order):
+- RAG context (if available): Read line by line, extract function names, class names, component names, API routes, file paths
+- Repository Analysis (if available): Use the keyFeatures list, tech stack, summary, and structure information
+- Directory Structure (if available): Extract file paths, directory organization, and file types
+- Create a combined list: "Feature X found in [source: RAG/analysis/directory] at file Y"
 
 STEP 2: Verify each element:
-- For each item in your list, verify it has actual implementation code in the RAG context
-- Remove any items you cannot verify
-- Your final list contains ONLY verified, existing features
+- For RAG context items: Verify they have actual implementation code
+- For Repository Analysis items: These are pre-verified, use them directly
+- For Directory Structure items: Verify file paths exist and infer purpose from structure
+- Remove any items you cannot verify from any source
 
-STEP 3: This verified list is your ONLY source of truth:
-- You can ONLY document items from this verified list
-- If it's not in the list, it doesn't exist - DO NOT document it
+STEP 3: This verified list is your PRIMARY source of truth:
+- You can document items from this verified list
+- If RAG context is empty but Repository Analysis has keyFeatures, use those as verified features
 - If the list has 5 items, document 5 items - no more
+- If the list is empty from ALL sources, then state that no features were found
 
 STEP 4: Only AFTER completing steps 1-3, generate documentation:
-- Document ONLY items from your verified list
-- For each item, cite the file path and explain what the code actually does
+- Document items from your verified list
+- For each item, cite the source (RAG context, analysis, or directory structure) and file path
 - Expand on these verified items with detail - do NOT add new items
 
 CRITICAL: If you skip this extraction and start documenting, you WILL invent content. This step is MANDATORY.
+IMPORTANT: Repository Analysis keyFeatures are considered verified even if RAG context is empty.
 
 MANDATORY: Before writing documentation, you MUST:
-1. List all verified features/components/APIs you found in RAG context (with file paths)
-2. Show this list in your response before the documentation (format: "Verified Features: 1. FeatureA (src/path.ts), 2. FeatureB (src/path2.ts)...")
-3. Document ONLY items from this list
-4. For each item, cite the exact file path and code location
+1. Extract features/components/APIs from available sources in this order:
+   - FIRST: RAG context (if available) - actual code from repository
+   - SECOND: Repository Analysis (if available) - summary, key features, tech stack
+   - THIRD: Directory Structure (if available) - file paths and organization
+   - FOURTH: baseMarkdown reference (if available) - but ONLY if verified in other sources
+2. Create a verified list from these sources (format: "Verified Features: 1. FeatureA (src/path.ts), 2. FeatureB (src/path2.ts)...")
+3. If RAG context is empty but Repository Analysis or Directory Structure is available, use those to identify features
+4. Document items from your verified list, citing sources (RAG context, analysis, or directory structure)
+5. If ALL sources are empty (no RAG, no analysis, no directory structure), then write: "No features found in codebase. This appears to be a minimal/empty repository."
+6. IMPORTANT: If you have Repository Analysis with keyFeatures, use those as verified features even if RAG context is empty
+
+CRITICAL ENFORCEMENT: 
+- If your verified list is empty from ALL sources (RAG, analysis, directory), your documentation should be SHORT and state that no features were found
+- If Repository Analysis provides keyFeatures, use those as verified features even if RAG context is empty
+- It's BETTER to have a short, accurate documentation than a long, invented one
+- If you invent even ONE feature not in your verified list, you have FAILED the task
+- Every single feature, API, component, or capability MUST appear in your verified list first
+- Repository Analysis keyFeatures are pre-verified and can be used when RAG context is unavailable
 
 CRITICAL - DO NOT INVENT CONTENT:
 - DO NOT invent features, functions, or capabilities that don't exist in the codebase
@@ -1271,13 +1406,17 @@ CRITICAL - DO NOT INVENT CONTENT:
 - Base ALL content on the RAG context, code analysis, and actual repository structure
 - If the code doesn't show a feature, DO NOT document it as if it exists
 - To reach the word count, expand on REAL features with more detail, examples, and explanations - do NOT invent new features
+- CRITICAL: If you have fewer features than needed for the word count, that's OK - document what EXISTS in extreme detail rather than inventing
+- REMEMBER: Short accurate documentation is BETTER than long invented documentation
 
-CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: ${minWords}-${targetWords}+ words - this is NOT optional)
-- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
-- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- MOST IMPORTANT: The documentation MUST accurately explain what this application does based on the code context - do NOT generate generic or vague descriptions
-- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+CRITICAL REQUIREMENTS (ACCURACY OVER LENGTH):
+1. ACCURACY IS PARAMOUNT: Document ONLY what exists in RAG context - if you invent even one feature, you FAIL
+2. Generate COMPLETELY NEW, EXTENSIVE documentation (TARGET: ${minWords}-${targetWords}+ words, BUT ONLY if you have enough verified features)
+3. If you have few verified features, write SHORT accurate documentation rather than inventing to reach word count
+4. DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+5. Use RAG context and repository analysis as PRIMARY sources - ignore reference documentation content
+6. MOST IMPORTANT: The documentation MUST accurately explain what this application does based on the code context - do NOT generate generic or vague descriptions
+7. Be THOROUGH and COMPREHENSIVE on VERIFIED features - expand on what EXISTS, don't add what doesn't exist
 - Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
 - Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
 - Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
@@ -1292,40 +1431,57 @@ CRITICAL REQUIREMENTS:
 
 ${lengthEnforcementSection}
 
-All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`
+All content must be in ${languageNames[language]}. Be EXTENSIVE and DETAILED - quality over brevity. Generate NEW comprehensive content based on THIS repository's codebase analysis, not reference material. Be verbose and thorough. The documentation must be UNIQUE to "${repoFullName}" - do NOT copy structure, features, or content from other projects. Base everything on the actual code from this repository.`
       : `You are an expert code documentation generator in the style of Cursor AI. Generate EXTENSIVE, COMPREHENSIVE, DETAILED ${sectionType} documentation.
 
 CRITICAL FIRST STEP - EXTRACT AND VERIFY (MANDATORY - DO NOT SKIP):
 BEFORE generating any documentation, you MUST complete this verification process:
 
-STEP 1: Extract actual code elements from RAG context:
-- Read the RAG context line by line
-- Extract: function names, class names, component names, API routes, file paths
-- Create a list: "Feature X found in file Y"
-- DO NOT proceed if you haven't created this list
+STEP 1: Extract features from ALL available sources (in priority order):
+- RAG context (if available): Read line by line, extract function names, class names, component names, API routes, file paths
+- Repository Analysis (if available): Use the keyFeatures list, tech stack, summary, and structure information
+- Directory Structure (if available): Extract file paths, directory organization, and file types
+- Create a combined list: "Feature X found in [source: RAG/analysis/directory] at file Y"
 
 STEP 2: Verify each element:
-- For each item in your list, verify it has actual implementation code in the RAG context
-- Remove any items you cannot verify
-- Your final list contains ONLY verified, existing features
+- For RAG context items: Verify they have actual implementation code
+- For Repository Analysis items: These are pre-verified, use them directly
+- For Directory Structure items: Verify file paths exist and infer purpose from structure
+- Remove any items you cannot verify from any source
 
-STEP 3: This verified list is your ONLY source of truth:
-- You can ONLY document items from this verified list
-- If it's not in the list, it doesn't exist - DO NOT document it
+STEP 3: This verified list is your PRIMARY source of truth:
+- You can document items from this verified list
+- If RAG context is empty but Repository Analysis has keyFeatures, use those as verified features
 - If the list has 5 items, document 5 items - no more
+- If the list is empty from ALL sources, then state that no features were found
 
 STEP 4: Only AFTER completing steps 1-3, generate documentation:
-- Document ONLY items from your verified list
-- For each item, cite the file path and explain what the code actually does
+- Document items from your verified list
+- For each item, cite the source (RAG context, analysis, or directory structure) and file path
 - Expand on these verified items with detail - do NOT add new items
 
 CRITICAL: If you skip this extraction and start documenting, you WILL invent content. This step is MANDATORY.
+IMPORTANT: Repository Analysis keyFeatures are considered verified even if RAG context is empty.
 
 MANDATORY: Before writing documentation, you MUST:
-1. List all verified features/components/APIs you found in RAG context (with file paths)
-2. Show this list in your response before the documentation (format: "Verified Features: 1. FeatureA (src/path.ts), 2. FeatureB (src/path2.ts)...")
-3. Document ONLY items from this list
-4. For each item, cite the exact file path and code location
+1. Extract features/components/APIs from available sources in this order:
+   - FIRST: RAG context (if available) - actual code from repository
+   - SECOND: Repository Analysis (if available) - summary, key features, tech stack
+   - THIRD: Directory Structure (if available) - file paths and organization
+   - FOURTH: baseMarkdown reference (if available) - but ONLY if verified in other sources
+2. Create a verified list from these sources (format: "Verified Features: 1. FeatureA (src/path.ts), 2. FeatureB (src/path2.ts)...")
+3. If RAG context is empty but Repository Analysis or Directory Structure is available, use those to identify features
+4. Document items from your verified list, citing sources (RAG context, analysis, or directory structure)
+5. If ALL sources are empty (no RAG, no analysis, no directory structure), then write: "No features found in codebase. This appears to be a minimal/empty repository."
+6. IMPORTANT: If you have Repository Analysis with keyFeatures, use those as verified features even if RAG context is empty
+
+CRITICAL ENFORCEMENT: 
+- If your verified list is empty from ALL sources (RAG, analysis, directory), your documentation should be SHORT and state that no features were found
+- If Repository Analysis provides keyFeatures, use those as verified features even if RAG context is empty
+- It's BETTER to have a short, accurate documentation than a long, invented one
+- If you invent even ONE feature not in your verified list, you have FAILED the task
+- Every single feature, API, component, or capability MUST appear in your verified list first
+- Repository Analysis keyFeatures are pre-verified and can be used when RAG context is unavailable
 
 CRITICAL - DO NOT INVENT CONTENT:
 - DO NOT invent features, functions, or capabilities that don't exist in the codebase
@@ -1340,13 +1496,17 @@ CRITICAL - DO NOT INVENT CONTENT:
 - Base ALL content on the RAG context, code analysis, and actual repository structure
 - If the code doesn't show a feature, DO NOT document it as if it exists
 - To reach the word count, expand on REAL features with more detail, examples, and explanations - do NOT invent new features
+- CRITICAL: If you have fewer features than needed for the word count, that's OK - document what EXISTS in extreme detail rather than inventing
+- REMEMBER: Short accurate documentation is BETTER than long invented documentation
 
-CRITICAL REQUIREMENTS:
-- Generate COMPLETELY NEW, EXTENSIVE documentation (MANDATORY: ${minWords}-${targetWords}+ words - this is NOT optional)
-- DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
-- Use RAG context and repository analysis as PRIMARY sources, not the reference documentation
-- MOST IMPORTANT: The documentation MUST accurately explain what this application does based on the code context - do NOT generate generic or vague descriptions
-- Be THOROUGH and COMPREHENSIVE - do not be brief or concise - CONTINUE GENERATING until you reach the word count
+CRITICAL REQUIREMENTS (ACCURACY OVER LENGTH):
+1. ACCURACY IS PARAMOUNT: Document ONLY what exists in RAG context - if you invent even one feature, you FAIL
+2. Generate COMPLETELY NEW, EXTENSIVE documentation (TARGET: ${minWords}-${targetWords}+ words, BUT ONLY if you have enough verified features)
+3. If you have few verified features, write SHORT accurate documentation rather than inventing to reach word count
+4. DO NOT copy or reformat the reference documentation - generate fresh content based on actual codebase analysis
+5. Use RAG context and repository analysis as PRIMARY sources - ignore reference documentation content
+6. MOST IMPORTANT: The documentation MUST accurately explain what this application does based on the code context - do NOT generate generic or vague descriptions
+7. Be THOROUGH and COMPREHENSIVE on VERIFIED features - expand on what EXISTS, don't add what doesn't exist
 - Document EVERYTHING - all functions, classes, types, interfaces, constants, utilities - leave nothing out
 - Include COMPLETE JSDoc/TSDoc style comments with ALL standard tags (@param, @returns, @throws, @example, @see, @since, @deprecated, @remarks)
 - Provide MULTIPLE examples for each concept (basic, advanced, edge cases, error handling, integration) - at least 3-5 examples per major function/class
@@ -1361,9 +1521,9 @@ CRITICAL REQUIREMENTS:
 
 ${lengthEnforcementSection}
 
-Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on codebase analysis, not reference material. Be verbose and thorough. Match the structure and detail level of professional documentation like GitScribe's DOCUMENTATION.md (4,500-5,500 words, 600-700+ lines).`;
+Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Quality and completeness over brevity. Generate NEW comprehensive content based on THIS repository's codebase analysis, not reference material. Be verbose and thorough. The documentation must be UNIQUE to "${repoFullName}" - do NOT copy structure, features, or content from other projects. Base everything on the actual code from this repository.`;
     
-    console.log(`[DocsWriter] Generating ${sectionType} with model: ${modelToUse}, maxTokens: ${maxTokens}, temperature: 0.2`);
+    console.debug(`[DocsWriter] Generating ${sectionType} (model: ${modelToUse}, maxTokens: ${maxTokens})`);
     
     // Use maximum tokens for comprehensive documentation generation
     // Use lower temperature (0.2) for more consistent, detailed output like Cursor AI
@@ -1379,17 +1539,15 @@ Style: Code-first, practical, developer-friendly, but EXTENSIVE and DETAILED. Qu
     
     // Log the length of generated content for debugging
     const wordCount = sectionContent.split(/\s+/).length;
-    const charCount = sectionContent.length;
     const lineCount = sectionContent.split('\n').length;
-    console.log(`[DocsWriter] Generated ${sectionType} content: ${wordCount} words, ${charCount} characters, ${lineCount} lines`);
+    console.debug(`[DocsWriter] Generated ${sectionType}: ${wordCount} words, ${lineCount} lines`);
     
     // Get word count targets (same as defined above)
-    const wordCountTargetsForValidation: Record<DocSectionType, { min: number; target: number }> = {
-      'README': { min: 1500, target: 5000 },
+    const wordCountTargetsForValidation: Partial<Record<DocSectionType, { min: number; target: number }>> = {
+      'README': { min: 0, target: 5000 },
       'ARCHITECTURE': { min: 0, target: 4500 },
       'API': { min: 0, target: 4500 },
       'COMPONENTS': { min: 1000, target: 6000 },
-      'INLINE_CODE': { min: 0, target: 2500 },
       'TESTING_CI': { min: 1000, target: 2000 },
       'CHANGELOG': { min: 0, target: 3000 },
     };
@@ -1478,7 +1636,7 @@ This is NOT optional - you MUST reach the minimum word count. Continue generatin
           );
           
           const expandedWordCount = expandedContent.split(/\s+/).length;
-          console.log(`[DocsWriter] Expanded content: ${expandedWordCount} words (was ${wordCount})`);
+          console.debug(`[DocsWriter] Expanded: ${expandedWordCount} words (was ${wordCount})`);
           
           if (expandedWordCount >= minWordsForValidation) {
             return expandedContent;
@@ -1489,10 +1647,12 @@ This is NOT optional - you MUST reach the minimum word count. Continue generatin
           console.error(`[DocsWriter] Failed to expand content:`, expandError);
         }
       }
-    } else if (wordCount < targetWordsForValidation) {
-      console.warn(`[DocsWriter] WARNING: Generated content is shorter than target (${wordCount} words). Target: ${targetWordsForValidation} words for ${sectionType}.`);
+    } else if (wordCount > targetWordsForValidation) {
+      // Content exceeds target - log as info (not a problem, just longer than expected)
+      console.debug(`[DocsWriter] ${sectionType}: ${wordCount} words (exceeds target of ${targetWordsForValidation}, but this is acceptable)`);
     } else {
-      console.log(`[DocsWriter] ✓ Generated comprehensive documentation: ${wordCount} words (target: ${targetWordsForValidation})`);
+      // Content is within acceptable range (0 to targetWordsForValidation) - this is fine
+      console.debug(`[DocsWriter] ✓ ${sectionType}: ${wordCount} words (within acceptable range: 0-${targetWordsForValidation})`);
     }
     
     return sectionContent;

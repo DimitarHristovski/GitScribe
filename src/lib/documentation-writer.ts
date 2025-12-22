@@ -595,6 +595,7 @@ export async function generateDocumentationFromGitHub(
   }
   
   // Try to fetch project.json first (for generated pages)
+  // Note: 404 errors for these files are expected - they're optional and may not exist in all repositories
   const projectFiles = [
     'project.json',
     'export/project.json',
@@ -613,8 +614,12 @@ export async function generateDocumentationFromGitHub(
           // Not JSON, continue
         }
       }
-    } catch (e) {
-      // Continue to next file
+    } catch (e: any) {
+      // Continue to next file - 404s are expected for optional files
+      // Silently ignore 404 errors (browser console may still show them - this is normal)
+      if (import.meta.env.DEV && e?.message && !e.message.includes('404') && !e.message.includes('Not Found')) {
+        console.debug(`[DocumentationWriter] Error fetching ${file}:`, e.message);
+      }
     }
   }
   
@@ -679,6 +684,8 @@ export async function generateDocumentationFromGitHub(
       const foundPages: string[] = [];
       const foundComponents: string[] = [];
       
+      // Note: 404 errors for these directories are expected - they're optional and may not exist in all repositories
+      // Browser console may show 404 errors - this is normal browser behavior and cannot be suppressed
       for (const dir of commonDirs) {
         try {
           const contents = await listGitHubContents(owner, repo, dir, branch, token || undefined);
@@ -742,6 +749,7 @@ export async function generateDocumentationFromGitHub(
       }
       
       // Try to read key files for more information
+      // Note: 404 errors for these files are expected - they're optional and may not exist in all repositories
       const keyFiles = [
         'next.config.js',
         'next.config.ts',
@@ -758,8 +766,12 @@ export async function generateDocumentationFromGitHub(
           if (content) {
             foundFiles.push(file);
           }
-        } catch (e) {
+        } catch (e: any) {
           // File not found - silently continue (404s are expected for optional files)
+          // Browser console may still show 404 errors - this is normal browser behavior
+          if (import.meta.env.DEV && e?.message && !e.message.includes('404') && !e.message.includes('Not Found')) {
+            console.debug(`[DocumentationWriter] Error fetching ${file}:`, e.message);
+          }
         }
       }
       

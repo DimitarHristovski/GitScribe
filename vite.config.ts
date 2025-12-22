@@ -26,10 +26,12 @@ export default defineConfig({
       '/api/openai': {
         target: 'https://api.openai.com',
         changeOrigin: true,
+        secure: true,
+        ws: false,
         rewrite: (path) => {
           // Rewrite /api/openai/chat/completions to /v1/chat/completions
           const rewritten = path.replace(/^\/api\/openai/, '/v1');
-          console.log('[Vite Proxy] Rewriting path:', path, '->', rewritten);
+          console.debug('[Vite Proxy] Rewriting path:', path, '->', rewritten);
           return rewritten;
         },
         configure: (proxy, _options) => {
@@ -44,10 +46,10 @@ export default defineConfig({
               if (!proxyReq.getHeader('Content-Type')) {
                 proxyReq.setHeader('Content-Type', 'application/json');
               }
-            } else {
-              console.error('[Vite Proxy] ERROR: No API key found in request headers');
-              console.log('[Vite Proxy] Request headers:', Object.keys(req.headers));
-            }
+              } else {
+                console.error('[Vite Proxy] ERROR: No API key found in request headers');
+                console.debug('[Vite Proxy] Request headers:', Object.keys(req.headers));
+              }
             
             // Remove the custom header before forwarding to OpenAI
             proxyReq.removeHeader('x-api-key');

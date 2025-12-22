@@ -58,24 +58,32 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
 
   // Log for debugging
   if (import.meta.env.DEV) {
-    const keySource = localStorage.getItem('openai_api_key') ? 'localStorage' : (import.meta.env.VITE_OPENAI_API_KEY ? 'environment variable' : 'NOT FOUND');
-    console.log(`[LangChain] Using API key from ${keySource}:`, apiKey ? `${apiKey.substring(0, 10)}...` : 'NOT FOUND');
-    console.log(`[LangChain] Model: ${model}, Temperature: ${temperature}, MaxTokens: ${maxTokens || 'default'}`);
+    console.debug(`[LangChain] Model: ${model}, Temp: ${temperature}, MaxTokens: ${maxTokens || 'default'}`);
   }
 
   // In browser environment, patch fetch to route through Vite proxy to avoid CORS
   const isBrowser = typeof window !== 'undefined';
   if (isBrowser) {
-    const originalFetch = window.fetch;
+    // Store original fetch if not already stored (to avoid multiple patches)
+    if (!(window as any).__originalFetch) {
+      (window as any).__originalFetch = window.fetch;
+    }
+    const originalFetch = (window as any).__originalFetch;
     
     // Patch fetch to intercept OpenAI API calls
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       
-      // Only intercept OpenAI API calls - be very specific to avoid intercepting other requests
-      // Check for exact OpenAI API endpoint pattern
-      const isOpenAICall = url.includes('api.openai.com/v1/chat/completions') || 
-                          (url.startsWith('/api/openai/chat/completions') && init?.method === 'POST');
+      // Skip interception for proxy URLs (to avoid recursion)
+      if (url.startsWith('/api/openai')) {
+        return originalFetch(input, init);
+      }
+      
+      // Only intercept OpenAI chat completions API calls - NOT embeddings
+      // Embeddings should go directly to their endpoint without interception
+      const isOpenAICall = (url.includes('api.openai.com/v1/chat/completions') || 
+                           url.includes('/api/openai/chat/completions')) && 
+                           !url.includes('/embeddings'); // Explicitly exclude embeddings
       
       if (isOpenAICall) {
         try {
@@ -91,14 +99,7 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
             throw new Error('OpenAI API key is not configured. Please set your API key in Settings.');
           }
           
-          console.log('[LangChain] Routing OpenAI API call:', {
-            mode: isDev ? 'dev (proxy)' : 'production (direct)',
-            url: proxyUrl,
-              model: body.model || model,
-              messagesCount: body.messages?.length || 0,
-              apiKeyPresent: !!apiKey,
-              apiKeyPrefix: apiKey.substring(0, 10) + '...',
-            });
+          console.debug(`[LangChain] API call: ${body.model || model} (${body.messages?.length || 0} messages)`);
           
           // Prepare headers based on mode
           const headers: HeadersInit = {
@@ -134,6 +135,19 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
             try {
               errorDetails = await proxyResponse.json();
               errorMessage = errorDetails.error?.message || errorDetails.error || errorDetails.message || errorMessage;
+              
+              // Log full error details for 403 to help diagnose
+              if (proxyResponse.status === 403) {
+                console.error('[LangChain] 403 Forbidden - Full error details:', {
+                  status: proxyResponse.status,
+                  error: errorDetails,
+                  errorType: errorDetails.error?.type,
+                  errorCode: errorDetails.error?.code,
+                  errorParam: errorDetails.error?.param,
+                  apiKeyPrefix: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
+                  endpoint: proxyUrl,
+                });
+              }
             } catch (e) {
               const errorText = await proxyResponse.text();
               errorMessage = errorText || errorMessage;
@@ -162,7 +176,16 @@ const getChatModel = (model: string = 'gpt-4o-mini', temperature: number = 0.7, 
             }
             
             if (proxyResponse.status === 403) {
-              throw new Error('Access forbidden. Check your API key permissions and account status.');
+              const detailedMessage = errorDetails?.error?.message || errorMessage;
+              throw new Error(`Access forbidden (403): ${detailedMessage}. Please check: 1) Your API key is valid and active, 2) Your account has access to embeddings API, 3) Your account has sufficient credits/quota.`);
+            }
+            
+            // Check for invalid model errors (400 status with model-related error)
+            if (proxyResponse.status === 400) {
+              if (errorMessage.includes('model') || errorMessage.includes('invalid') || errorDetails?.error?.code === 'invalid_model') {
+                const modelName = body.model || model;
+                throw new Error(`Invalid model "${modelName}". This model does not exist or is not available. Please select a valid model like gpt-4o-mini, gpt-4o, gpt-4-turbo, gpt-4, or gpt-3.5-turbo.`);
+              }
             }
             
             throw new Error(`Request failed: ${errorMessage} (${proxyResponse.status})`);
@@ -231,7 +254,7 @@ export async function callLangChain(
     }
   } else if (useRAG && repoName && hasRAGInPrompt) {
     // RAG context already in prompt, skip retrieval to avoid duplication
-    console.log('[LangChain] RAG context already in prompt, skipping retrieval');
+    console.debug('[LangChain] RAG context already in prompt, skipping retrieval');
   }
   
   const messages = [];
@@ -252,12 +275,26 @@ export async function callLangChain(
     const response = await chain.invoke(messages);
     
     // Log response length for debugging
-    const responseLength = typeof response === 'string' ? response.length : JSON.stringify(response).length;
     const responseWordCount = typeof response === 'string' ? response.split(/\s+/).length : 0;
-    console.log(`[LangChain] Response received: ${responseWordCount} words, ${responseLength} characters, maxTokens was: ${defaultMaxTokens}`);
+    console.debug(`[LangChain] Response: ${responseWordCount} words (maxTokens: ${defaultMaxTokens})`);
     
-    if (responseWordCount < 1000 && defaultMaxTokens >= 8000) {
-      console.warn(`[LangChain] WARNING: Response is very short (${responseWordCount} words) despite high maxTokens (${defaultMaxTokens}). Model may have stopped early.`);
+    // Only warn if response is extremely short AND we're expecting a long response
+    // Suppress warnings for planning/analysis tasks that naturally produce short responses
+    // Only show warnings for documentation generation that truly failed (extremely short responses)
+    if (responseWordCount < 100 && defaultMaxTokens >= 15000) {
+      // Only warn for extremely short responses (< 100 words) with very high maxTokens (>= 15000)
+      // This typically indicates documentation generation that completely failed
+      // Planning/analysis tasks (130-300 words) are acceptable and won't trigger warnings
+      console.warn(`[LangChain] ⚠️ WARNING: Response is extremely short (${responseWordCount} words) despite high maxTokens (${defaultMaxTokens}).`);
+      console.warn(`[LangChain] Possible causes:`);
+      console.warn(`[LangChain] 1. Model may have stopped early (hit a stop sequence or finish token)`);
+      console.warn(`[LangChain] 2. RAG context may be empty, causing model to have insufficient information`);
+      console.warn(`[LangChain] 3. Prompt may not be providing enough guidance for comprehensive output`);
+      console.warn(`[LangChain] 4. Model may be hitting rate limits or other API constraints`);
+    } else if (responseWordCount < 200 && defaultMaxTokens >= 15000) {
+      // Debug-level logging for short responses in high-token contexts
+      // This is expected for planning/analysis tasks (130-300 words is normal)
+      console.debug(`[LangChain] Response is short (${responseWordCount} words) with high maxTokens (${defaultMaxTokens}). This is expected for planning/analysis tasks.`);
     }
     
     return response;
@@ -267,7 +304,10 @@ export async function callLangChain(
     // Provide more helpful error messages
     let errorMessage = error.message || 'Unknown error';
     
-    if (errorMessage.includes('API key') || errorMessage.includes('401')) {
+    if (errorMessage.includes('Invalid model') || errorMessage.includes('invalid_model') || errorMessage.includes('does not exist')) {
+      // Model error - already has a helpful message, just rethrow
+      throw error;
+    } else if (errorMessage.includes('API key') || errorMessage.includes('401')) {
       errorMessage = 'OpenAI API key is missing or invalid. Please configure your API key in settings.';
     } else if (errorMessage.includes('CORS') || errorMessage.includes('cors')) {
       errorMessage = 'CORS error. Make sure your OpenAI API key is configured correctly.';

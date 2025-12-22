@@ -7,7 +7,7 @@ import { AgentState, AgentStep } from './types';
 import { SimpleRepo, fetchUserRepos } from '../github-service';
 
 export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<AgentState>> {
-  console.log('[RepoDiscovery] Starting repository discovery...');
+  console.log('[RepoDiscovery] Starting discovery...');
   
   const updates: Partial<AgentState> = {
     currentStep: AgentStep.DISCOVERY,
@@ -21,7 +21,7 @@ export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<Age
   try {
     // If repos are already selected, validate them
     if (state.selectedRepos && state.selectedRepos.length > 0) {
-      console.log('[RepoDiscovery] Validating', state.selectedRepos.length, 'selected repositories');
+      console.debug(`[RepoDiscovery] Validating ${state.selectedRepos.length} repositories`);
       
       // Validate each repo
       const validatedRepos: SimpleRepo[] = [];
@@ -45,7 +45,7 @@ export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<Age
           currentAgent: 'RepoDiscovery',
         };
         
-        console.log('[RepoDiscovery] Validated', validatedRepos.length, 'repositories');
+        console.debug(`[RepoDiscovery] Validated ${validatedRepos.length} repositories`);
       } else {
         // Mark as completed even with error so workflow can handle it properly
         updates.completedSteps = new Set([AgentStep.DISCOVERY]);
@@ -64,7 +64,7 @@ export async function repoDiscoveryAgent(state: AgentState): Promise<Partial<Age
             total: 1,
             currentAgent: 'RepoDiscovery',
           };
-          console.log('[RepoDiscovery] Discovered', userRepos.length, 'user repositories');
+          console.debug(`[RepoDiscovery] Discovered ${userRepos.length} user repositories`);
         } else {
           // Mark as completed even with error so workflow can handle it properly
           updates.completedSteps = new Set([AgentStep.DISCOVERY]);

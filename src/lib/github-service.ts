@@ -125,12 +125,23 @@ export async function listGitHubContents(
     const apiPath = path ? `contents/${path}` : 'contents';
     const url = `https://api.github.com/repos/${owner}/${repo}/${apiPath}?ref=${branch}`;
     
-    const response = await fetch(url, { headers });
+    let response: Response;
+    try {
+      response = await fetch(url, { headers });
+    } catch (fetchError: any) {
+      // CORS or network errors - return empty array silently
+      if (import.meta.env.DEV) {
+        console.debug(`[GitHub] Network/CORS error listing ${path}, returning empty array`);
+      }
+      return [];
+    }
 
     if (!response.ok) {
       if (response.status === 404) {
+        // 404 is expected for optional directories/files - return empty array silently
         return [];
       }
+      // For other errors, throw only if not a network error
       throw new Error(`Failed to list contents: ${response.status} ${response.statusText}`);
     }
 
@@ -155,7 +166,18 @@ export async function listGitHubContents(
 
     return [];
   } catch (error: any) {
-    console.error('Error listing GitHub contents:', error);
+    // CORS errors are expected in browser environments - return empty array gracefully
+    if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+      if (import.meta.env.DEV) {
+        console.debug(`[GitHub] CORS/network error listing ${path} - returning empty array`);
+      }
+      return []; // Return empty array instead of throwing for CORS errors
+    }
+    
+    // Only log and throw for unexpected errors
+    if (import.meta.env.DEV) {
+      console.warn('[GitHub] Error listing contents:', error.message || error);
+    }
     throw new Error(`Failed to list repository contents: ${error.message}`);
   }
 }
@@ -181,12 +203,30 @@ export async function listAllFiles(
       if (item.type === 'file') {
         files.push(item.path);
       } else if (item.type === 'dir' && !item.name.startsWith('.') && item.name !== 'node_modules') {
-        const subFiles = await listAllFiles(owner, repo, item.path, branch, token, maxDepth - 1);
-        files.push(...subFiles);
+        try {
+          const subFiles = await listAllFiles(owner, repo, item.path, branch, token, maxDepth - 1);
+          files.push(...subFiles);
+        } catch (subError: any) {
+          // Continue with other directories even if one fails (CORS might block some)
+          if (import.meta.env.DEV) {
+            console.debug(`[GitHub] Failed to list subdirectory ${item.path}, continuing...`);
+          }
+        }
       }
     }
-  } catch (error) {
-    console.warn(`Failed to list files in ${path}:`, error);
+  } catch (error: any) {
+    // CORS errors are expected - return empty array instead of throwing
+    if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+      if (import.meta.env.DEV) {
+        console.debug(`[GitHub] CORS/network error listing ${path}, returning empty array`);
+      }
+      return [];
+    }
+    // Only log and throw for unexpected errors
+    if (import.meta.env.DEV) {
+      console.warn(`[GitHub] Failed to list files in ${path}:`, error.message || error);
+    }
+    throw error;
   }
 
   return files;
@@ -279,41 +319,53 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
     //    console.log('Fetching GitHub file via API:', apiUrl);
         
         const headers = createGitHubHeaders(githubToken);
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers,
-        });
+        let response: Response;
+        try {
+          response = await fetch(apiUrl, {
+            method: 'GET',
+            headers,
+          });
+        } catch (fetchError: any) {
+          // CORS or network errors - silently fall through to raw URL
+          if (import.meta.env.DEV) {
+            console.debug(`[GitHub] Network/CORS error fetching ${path} via API, falling back to raw URL`);
+          }
+          throw fetchError; // Will be caught by outer catch
+        }
         
         if (response.ok) {
           const data = await response.json();
           if (data.content && data.encoding === 'base64') {
             const content = atob(data.content.replace(/\s/g, ''));
-            console.log(`Successfully fetched ${path} via API, length: ${content.length}`);
+            console.debug(`[GitHub] Fetched ${path}: ${content.length} chars`);
             return content;
           }
         } else if (response.status === 404) {
           // Try main branch if master fails
           if (branch === 'master') {
-          //  console.log('Trying main branch instead of master');
             return fetchGitHubFile(owner, repo, path, 'main', token);
           }
           // Silently return null for 404s - file doesn't exist, which is expected for optional files
-          // Only log in dev mode to reduce console noise
-          if (import.meta.env.DEV) {
-            console.debug(`File not found: ${path} (404) - this is expected for optional files`);
-          }
           return null;
         }
         // If API fails, fall through to raw URL method
-        console.warn('GitHub API request failed, falling back to raw URL');
-      } catch (apiError) {
-        console.warn('GitHub API request error, falling back to raw URL:', apiError);
+        if (import.meta.env.DEV) {
+          console.debug('[GitHub] API request failed, falling back to raw URL');
+        }
+      } catch (apiError: any) {
+        // CORS/network errors are expected in browser environments - silently fall back to raw URL
+        // Only log unexpected errors
+        if (!apiError?.message?.includes('CORS') && !apiError?.message?.includes('Failed to fetch') && apiError?.name !== 'TypeError') {
+          if (import.meta.env.DEV) {
+            console.warn('[GitHub] API request error, falling back to raw URL:', apiError.message || apiError);
+          }
+        }
       }
     }
     
     // Fallback: Use GitHub Raw Content API (may have CORS issues without token)
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-    console.log('Fetching GitHub file via raw URL:', url);
+    console.debug(`[GitHub] Fetching via raw URL: ${path}`);
     
     // Use Headers object for raw URL (though raw URLs don't support auth, we still sanitize)
     const headers = new Headers();
@@ -326,25 +378,27 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
       }
     }
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    
-    console.log('GitHub file response status:', response.status, response.statusText);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers,
+      });
+    } catch (fetchError: any) {
+      // CORS or network errors - return null silently
+      if (import.meta.env.DEV) {
+        console.debug(`[GitHub] Network/CORS error fetching ${path} via raw URL`);
+      }
+      return null;
+    }
     
     if (!response.ok) {
       if (response.status === 404) {
         // Try main branch if master fails
         if (branch === 'master') {
-          console.log('Trying main branch instead of master');
           return fetchGitHubFile(owner, repo, path, 'main', token);
         }
         // Silently return null for 404s - file doesn't exist, which is expected for optional files
-        // Only log in dev mode to reduce console noise
-        if (import.meta.env.DEV) {
-          console.debug(`File not found: ${path} (404) - this is expected for optional files`);
-        }
         return null;
       }
       if (response.status === 403) {
@@ -354,10 +408,21 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
     }
 
     const text = await response.text();
-    console.log(`Successfully fetched ${path}, length: ${text.length}`);
+    console.debug(`[GitHub] Fetched ${path}: ${text.length} chars`);
     return text;
   } catch (error: any) {
-    console.error('Error fetching GitHub file:', error);
+    // CORS errors are expected in browser environments - return null gracefully
+    if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+      if (import.meta.env.DEV) {
+        console.debug(`[GitHub] CORS/network error fetching ${path} - this is expected in browser environments without a proxy`);
+      }
+      return null; // Return null instead of throwing for CORS errors
+    }
+    
+    // Only log and throw for unexpected errors
+    if (import.meta.env.DEV) {
+      console.warn('[GitHub] Error fetching file:', error.message || error);
+    }
     if (error.message) {
       throw error;
     }

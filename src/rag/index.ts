@@ -15,7 +15,7 @@ import { RagDocument, RagSearchResult } from './types';
  * Index a repository for RAG
  */
 export async function indexRepository(repo: SimpleRepo): Promise<number> {
-  console.log(`[RAG] Indexing repository: ${repo.fullName}`);
+  console.log(`[RAG] Indexing: ${repo.fullName}`);
   
   // Initialize vector store
   await initVectorStore();
@@ -64,6 +64,14 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
     // Note: .db, .sqlite, .sqlite3 are NOT excluded - they may contain text-based schemas or SQL
   ];
   
+  // Minified file patterns to exclude (too large and not useful for RAG)
+  const minifiedFilePatterns = [
+    /\.min\.(css|js)$/i,        // .min.css, .min.js
+    /\.bundle\.(css|js)$/i,     // .bundle.css, .bundle.js
+    /vendor\.(css|js)$/i,       // vendor.css, vendor.js
+    /bootstrap\.min\.(css|js)$/i, // bootstrap.min.css, bootstrap.min.js
+  ];
+  
   // Database-related file patterns to prioritize (these are important for understanding the app)
   const databaseFilePatterns = [
     /\.sql$/i,           // SQL files
@@ -93,6 +101,11 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
       return false;
     }
     
+    // Exclude minified files (too large and not useful for RAG)
+    if (minifiedFilePatterns.some(pattern => pattern.test(file))) {
+      return false;
+    }
+    
     // Check if it's a database-related file (always include these)
     const isDatabaseFile = databaseFilePatterns.some(pattern => pattern.test(file));
     if (isDatabaseFile) {
@@ -117,7 +130,7 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
     return 0;
   });
   
-  console.log(`[RAG] Found ${sortedFiles.length} files to index (out of ${files.length} total)`);
+  console.debug(`[RAG] Found ${sortedFiles.length} files to index (out of ${files.length} total)`);
   
   // Chunk all files
   const allChunks: RagDocument[] = [];
@@ -157,21 +170,21 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
     }
   }
   
-  console.log(`[RAG] Created ${allChunks.length} chunks`);
+  console.debug(`[RAG] Created ${allChunks.length} chunks`);
   
   if (allChunks.length === 0) {
     return 0;
   }
   
   // Generate embeddings
-  console.log(`[RAG] Generating embeddings...`);
+  console.debug(`[RAG] Generating embeddings...`);
   const vectors = await embedDocuments(allChunks);
   
   // Store vectors
-  console.log(`[RAG] Storing ${vectors.length} vectors...`);
+  console.debug(`[RAG] Storing ${vectors.length} vectors...`);
   await storeVectors(vectors, allChunks);
   
-  console.log(`[RAG] Successfully indexed ${vectors.length} chunks for ${repo.fullName}`);
+  console.log(`[RAG] ✓ Indexed ${vectors.length} chunks for ${repo.fullName}`);
   return vectors.length;
 }
 

@@ -10,7 +10,7 @@ import { callLangChain } from '../langchain-service';
 import { indexRepository } from '../../rag/index';
 
 export async function repoAnalysisAgent(state: AgentState): Promise<Partial<AgentState>> {
-  console.log('[RepoAnalysis] Starting repository analysis...');
+  console.log('[RepoAnalysis] Starting analysis...');
   
   const updates: Partial<AgentState> = {
     currentStep: AgentStep.ANALYSIS,
@@ -30,7 +30,7 @@ export async function repoAnalysisAgent(state: AgentState): Promise<Partial<Agen
   // Process all repositories in parallel
   const analysisPromises = state.discoveredRepos.map(async (repo) => {
     try {
-      console.log(`[RepoAnalysis] Starting analysis for ${repo.fullName}`);
+      console.debug(`[RepoAnalysis] Analyzing ${repo.fullName}`);
 
       const [owner, repoName] = repo.fullName.split('/');
       const branch = repo.defaultBranch || 'main';
@@ -220,7 +220,7 @@ Format as JSON:
         currentRepo: repo.fullName,
         currentAgent: 'RepoAnalysis',
       };
-      console.log(`[RepoAnalysis] Completed analysis for ${repo.fullName} (${completed}/${total})`);
+      console.debug(`[RepoAnalysis] Completed ${repo.fullName} (${completed}/${total})`);
 
       return { repoFullName: repo.fullName, analysis, error: null };
     } catch (error: any) {
@@ -261,7 +261,7 @@ Format as JSON:
     currentAgent: 'RepoAnalysis',
   };
 
-  console.log(`[RepoAnalysis] Completed analysis for ${analyses.size} repositories`);
+  console.log(`[RepoAnalysis] ✓ Completed: ${analyses.size} repositories`);
   return updates;
 }
 

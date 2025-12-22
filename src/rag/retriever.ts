@@ -51,8 +51,7 @@ export async function search(
       console.warn(`[RAG] Top 5 similarity scores: ${topScores.join(', ')}`);
     }
   } else {
-    console.log(`[RAG] Found ${sortedResults.length} results for query: "${query.substring(0, 50)}..." (repo: ${repoName || 'all'})`);
-    console.log(`[RAG] Similarity scores: ${sortedResults.map(r => r.score.toFixed(3)).join(', ')}`);
+    console.debug(`[RAG] Found ${sortedResults.length} results (repo: ${repoName || 'all'})`);
   }
   
   // Lower threshold to 0.3 to get more results (was 0.5)

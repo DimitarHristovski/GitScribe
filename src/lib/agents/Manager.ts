@@ -32,7 +32,7 @@ export const agentNodes: Map<AgentStep, AgentNode> = new Map([
         // Always run DISCOVERY if it hasn't been completed and we have repos
         const hasCompleted = state.completedSteps?.has(AgentStep.DISCOVERY) || false;
         const hasRepos = state.selectedRepos && state.selectedRepos.length > 0;
-        console.log(`[Manager] DISCOVERY shouldRun check:`, { hasCompleted, hasRepos, selectedReposCount: state.selectedRepos?.length || 0 });
+        console.debug(`[Manager] DISCOVERY shouldRun: ${!hasCompleted && hasRepos}`);
         return !hasCompleted && hasRepos;
       },
     },
@@ -167,7 +167,7 @@ export class AgentManager {
       return false; // Return false to indicate step was skipped
     }
 
-    console.log(`[Manager] Executing ${node.name}...`);
+    console.debug(`[Manager] Executing ${node.name}...`);
     const updates = await node.execute(this.state);
     this.updateState(updates);
     return true; // Return true to indicate step was executed
@@ -178,7 +178,7 @@ export class AgentManager {
    */
   async run(): Promise<AgentState> {
     console.log('[Manager] Starting agent workflow...');
-    console.log('[Manager] Initial state:', {
+    console.debug('[Manager] Initial state:', {
       selectedRepos: this.state.selectedRepos?.length || 0,
       completedSteps: Array.from(this.state.completedSteps || []),
     });
@@ -196,8 +196,8 @@ export class AgentManager {
       try {
         iterations++;
         
-        console.log(`[Manager] === Iteration ${iterations}: Executing step ${currentStep} ===`);
-        console.log(`[Manager] State before step:`, {
+        console.debug(`[Manager] Iteration ${iterations}: ${currentStep}`);
+        console.debug(`[Manager] State before step:`, {
           completedSteps: Array.from(this.state.completedSteps || []),
           hasDiscoveredRepos: !!this.state.discoveredRepos && this.state.discoveredRepos.length > 0,
           hasRepoAnalyses: !!this.state.repoAnalyses && this.state.repoAnalyses.size > 0,
@@ -205,8 +205,8 @@ export class AgentManager {
         
         const stepExecuted = await this.executeStep(currentStep);
         
-        console.log(`[Manager] Step ${currentStep} executed: ${stepExecuted}`);
-        console.log(`[Manager] State after step:`, {
+        console.debug(`[Manager] Step ${currentStep} executed: ${stepExecuted}`);
+        console.debug(`[Manager] State after step:`, {
           completedSteps: Array.from(this.state.completedSteps || []),
           hasDiscoveredRepos: !!this.state.discoveredRepos && this.state.discoveredRepos.length > 0,
           hasRepoAnalyses: !!this.state.repoAnalyses && this.state.repoAnalyses.size > 0,
@@ -214,7 +214,7 @@ export class AgentManager {
         
         // Get next step based on current state
         const nextStep = getNextStep(currentStep, this.state);
-        console.log(`[Manager] Next step from ${currentStep}:`, nextStep);
+        console.debug(`[Manager] Next step: ${nextStep}`);
         
         // If step was executed and we have a next step, move forward
         if (stepExecuted && nextStep) {
@@ -239,7 +239,7 @@ export class AgentManager {
           const nextNode = agentNodes.get(nextStep);
           if (nextNode && nextNode.shouldRun) {
             const canRunNext = nextNode.shouldRun(this.state);
-            console.log(`[Manager] Next step ${nextStep} can run:`, canRunNext);
+            console.debug(`[Manager] Next step ${nextStep} can run: ${canRunNext}`);
             if (!canRunNext) {
               console.warn(`[Manager] Next step ${nextStep} conditions not met. State:`, {
                 completedSteps: Array.from(this.state.completedSteps || []),
@@ -280,7 +280,7 @@ export class AgentManager {
           
           // For other steps, try to continue if we have a next step
           if (nextStep && nextStep !== currentStep) {
-            console.log(`[Manager] Attempting to continue to ${nextStep} despite skip`);
+            console.debug(`[Manager] Continuing to ${nextStep} despite skip`);
             currentStep = nextStep;
             this.updateState({
               currentStep: currentStep,
@@ -291,7 +291,7 @@ export class AgentManager {
           }
         } else {
           // Step executed but no next step - workflow complete
-          console.log(`[Manager] No next step from ${currentStep}, completing workflow`);
+          console.debug(`[Manager] No next step, completing workflow`);
           break;
         }
         

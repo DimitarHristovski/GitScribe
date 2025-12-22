@@ -3,11 +3,11 @@
  * Plans the documentation structure for each repository
  */
 
-import { AgentState, AgentStep, DocumentationPlan, DocumentationSection } from './types';
+import { AgentState, AgentStep, DocumentationPlan } from './types';
 import { callLangChain } from '../langchain-service';
 
 export async function docsPlannerAgent(state: AgentState): Promise<Partial<AgentState>> {
-  console.log('[DocsPlanner] Starting documentation planning...');
+  console.log('[DocsPlanner] Starting planning...');
   
   const updates: Partial<AgentState> = {
     currentStep: AgentStep.PLANNING,
@@ -26,7 +26,7 @@ export async function docsPlannerAgent(state: AgentState): Promise<Partial<Agent
   // Process all repositories in parallel
   const planningPromises = Array.from(state.repoAnalyses.entries()).map(async ([repoFullName, analysis]) => {
     try {
-      console.log(`[DocsPlanner] Starting planning for ${repoFullName}`);
+      console.debug(`[DocsPlanner] Planning ${repoFullName}`);
 
       // Generate documentation plan using AI
       const planningPrompt = `Create a documentation plan for this repository:
@@ -73,22 +73,39 @@ Return JSON format:
           0.4
         );
 
-        const parsed = JSON.parse(aiPlan);
+        // Try to extract JSON from the response (may be wrapped in markdown code blocks)
+        let parsed: any;
+        try {
+          parsed = JSON.parse(aiPlan);
+        } catch (parseError) {
+          // Try to extract JSON from markdown code blocks
+          const jsonMatch = aiPlan.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || aiPlan.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+          } else {
+            throw parseError;
+          }
+        }
         
         plan = {
           repo: analysis.repo,
-          sections: parsed.sections.map((s: any) => ({
+          sections: parsed.sections?.map((s: any) => ({
             title: s.title,
             type: s.type || 'overview',
             priority: s.priority || 5,
             estimatedTokens: s.estimatedTokens || 500,
-          })) as DocumentationSection[],
+          })) || [],
           estimatedLength: parsed.estimatedLength || 5000,
           focusAreas: parsed.focusAreas || analysis.keyFeatures,
           style: parsed.style || 'comprehensive',
         };
-      } catch (error) {
-        console.warn(`[DocsPlanner] AI planning failed for ${repoFullName}, using default plan`);
+      } catch (error: any) {
+        // Log error details in dev mode only
+        if (import.meta.env.DEV) {
+          console.debug(`[DocsPlanner] AI planning failed for ${repoFullName}, using default plan:`, error.message || error);
+        } else {
+          console.warn(`[DocsPlanner] AI planning failed for ${repoFullName}, using default plan`);
+        }
         // Fallback plan
         plan = {
           repo: analysis.repo,
@@ -115,7 +132,7 @@ Return JSON format:
         currentRepo: repoFullName,
         currentAgent: 'DocsPlanner',
       };
-      console.log(`[DocsPlanner] Completed planning for ${repoFullName} (${completed}/${total})`);
+      console.debug(`[DocsPlanner] Completed ${repoFullName} (${completed}/${total})`);
 
       return { repoFullName, plan, error: null };
     } catch (error: any) {
@@ -156,7 +173,7 @@ Return JSON format:
     currentAgent: 'DocsPlanner',
   };
 
-  console.log(`[DocsPlanner] Completed planning for ${plans.size} repositories`);
+  console.log(`[DocsPlanner] ✓ Completed: ${plans.size} repositories`);
   return updates;
 }
 

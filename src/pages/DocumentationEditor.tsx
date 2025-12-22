@@ -699,8 +699,6 @@ ${documentation.split('\n').map(line => {
     'gpt-3.5-turbo': { input: 0.50, output: 1.50 },
     'o1-preview': { input: 15.00, output: 60.00 },
     'o1-mini': { input: 3.00, output: 12.00 },
-    'gpt-5.2': { input: 5.00, output: 15.00 },
-    'gpt-5-codex': { input: 8.00, output: 24.00 },
   };
   
   const pricing = modelPricing[selectedModel] || modelPricing['gpt-4o-mini'];
@@ -2454,8 +2452,6 @@ ${documentation.split('\n').map(line => {
                     <option value="gpt-4-turbo">GPT-4 Turbo</option>
                     <option value="gpt-4">GPT-4 - Standard</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                    <option value="gpt-5.2">GPT-5.2</option>
-                    <option value="gpt-5-codex">GPT-5 Codex</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-2">
                     Select the AI model to use for documentation generation. GPT-4o Mini is recommended for faster and cost-effective generation.

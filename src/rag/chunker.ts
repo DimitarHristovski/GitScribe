@@ -16,17 +16,16 @@ export function chunkCodeFile(
   path: string,
   content: string
 ): RagDocument[] {
-  const chunks: RagDocument[] = [];
   const lines = content.split('\n');
   
   // Try to chunk by code structure first (functions, classes, etc.)
-  const structureChunks = chunkByStructure(repoName, path, content, lines);
+  const structureChunks = chunkByStructure(repoName, path, lines);
   if (structureChunks.length > 0) {
     return structureChunks;
   }
   
   // Fallback to fixed-size chunks with overlap
-  return chunkBySize(repoName, path, content, lines);
+  return chunkBySize(repoName, path, lines);
 }
 
 /**
@@ -35,7 +34,6 @@ export function chunkCodeFile(
 function chunkByStructure(
   repoName: string,
   path: string,
-  content: string,
   lines: string[]
 ): RagDocument[] {
   const chunks: RagDocument[] = [];
@@ -99,7 +97,6 @@ function chunkByStructure(
 function chunkBySize(
   repoName: string,
   path: string,
-  content: string,
   lines: string[]
 ): RagDocument[] {
   const chunks: RagDocument[] = [];
