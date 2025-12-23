@@ -302,9 +302,21 @@ async function generateSectionSpecificContent(
     const { isRepositoryIndexed } = await import('../../rag/index');
     const isIndexed = await isRepositoryIndexed(repoFullName);
     if (!isIndexed) {
-      console.warn(`[DocsWriter] ⚠️ Repository "${repoFullName}" is not indexed. RAG context will be empty.`);
-      console.warn(`[DocsWriter] This may happen if indexing failed during the Discovery/Analysis phase.`);
-      console.warn(`[DocsWriter] Documentation will rely on Repository Analysis and Directory Structure only.`);
+      // Check if token exists to provide better error message
+      const { getGitHubToken } = await import('../github-service');
+      const hasToken = !!getGitHubToken();
+      
+      if (import.meta.env.DEV) {
+        if (hasToken) {
+          console.warn(`[DocsWriter] Repository "${repoFullName}" is not indexed despite having a GitHub token.`);
+          console.warn(`[DocsWriter] Possible causes: 1) Token may be invalid/expired, 2) Token lacks 'repo' scope, 3) Indexing failed during Analysis phase.`);
+          console.warn(`[DocsWriter] Documentation will use Repository Analysis and Directory Structure instead.`);
+        } else {
+          console.warn(`[DocsWriter] Repository "${repoFullName}" is not indexed. RAG context will be limited.`);
+          console.warn(`[DocsWriter] This is expected if GitHub API access failed (401/403 errors). Documentation will use Repository Analysis and Directory Structure.`);
+          console.warn(`[DocsWriter] To enable RAG indexing, configure a valid GitHub token in Settings.`);
+        }
+      }
     } else {
       console.debug(`[DocsWriter] Repository indexed, retrieving RAG context...`);
     }
@@ -337,13 +349,13 @@ async function generateSectionSpecificContent(
     }
     
     if (!ragContext || ragContext.trim().length < 100) {
-      console.error(`[DocsWriter] ⚠️ CRITICAL WARNING: RAG context is empty or too short (${ragContext.length} chars).`);
-      console.error(`[DocsWriter] Possible causes:`);
-      console.error(`[DocsWriter] 1. Repository "${repoFullName}" may not be indexed yet`);
-      console.error(`[DocsWriter] 2. Similarity search returned no results (repository may be empty or have no code)`);
-      console.error(`[DocsWriter] 3. RAG indexing may have failed during the Discovery/Analysis phase`);
-      console.error(`[DocsWriter] ⚠️ Without RAG context, the AI will rely on Repository Analysis and Directory Structure only.`);
-      console.error(`[DocsWriter] ⚠️ This may result in less accurate documentation. Consider re-running the workflow to ensure indexing completes.`);
+      // RAG context is empty - this is expected if GitHub API access failed or repository wasn't indexed
+      // Change to debug level to reduce noise - workflow continues with Repository Analysis
+      if (import.meta.env.DEV) {
+        console.debug(`[DocsWriter] RAG context is empty (${ragContext.length} chars). This is expected if GitHub API access failed (401/403) or repository wasn't indexed.`);
+        console.debug(`[DocsWriter] Documentation will use Repository Analysis and Directory Structure instead.`);
+        console.debug(`[DocsWriter] To enable RAG indexing, configure a valid GitHub token in Settings.`);
+      }
     }
   } catch (error) {
     console.error(`[DocsWriter] RAG context retrieval failed for ${repoFullName}:`, error);

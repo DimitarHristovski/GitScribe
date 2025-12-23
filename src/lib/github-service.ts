@@ -139,6 +139,26 @@ export async function listGitHubContents(
     if (!response.ok) {
       if (response.status === 404) {
         // 404 is expected for optional directories/files - return empty array silently
+        if (import.meta.env.DEV) {
+          console.debug(`[GitHub] Directory not found: ${path} (404) - this is expected for optional directories`);
+        }
+        return [];
+      }
+      if (response.status === 401) {
+        // 401 Unauthorized - token is missing, invalid, or expired
+        const hasToken = !!githubToken;
+        if (import.meta.env.DEV) {
+          console.warn(`[GitHub] 401 Unauthorized when listing ${path}. Token present: ${hasToken}. Please check your GitHub token in Settings.`);
+        }
+        // Return empty array instead of throwing - allow workflow to continue with limited data
+        return [];
+      }
+      if (response.status === 403) {
+        // 403 Forbidden - rate limited or insufficient permissions
+        if (import.meta.env.DEV) {
+          console.warn(`[GitHub] 403 Forbidden when listing ${path}. This may be due to rate limiting or insufficient token permissions.`);
+        }
+        // Return empty array instead of throwing - allow workflow to continue
         return [];
       }
       // For other errors, throw only if not a network error
@@ -347,6 +367,21 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
           }
           // Silently return null for 404s - file doesn't exist, which is expected for optional files
           return null;
+        } else if (response.status === 401) {
+          // 401 Unauthorized - token is missing, invalid, or expired
+          const hasToken = !!githubToken;
+          if (import.meta.env.DEV) {
+            console.warn(`[GitHub] 401 Unauthorized when fetching ${path}. Token present: ${hasToken}. Please check your GitHub token in Settings.`);
+          }
+          // Return null instead of throwing - allow workflow to continue
+          return null;
+        } else if (response.status === 403) {
+          // 403 Forbidden - rate limited or insufficient permissions
+          if (import.meta.env.DEV) {
+            console.warn(`[GitHub] 403 Forbidden when fetching ${path}. This may be due to rate limiting or insufficient token permissions.`);
+          }
+          // Return null instead of throwing - allow workflow to continue
+          return null;
         }
         // If API fails, fall through to raw URL method
         if (import.meta.env.DEV) {
@@ -401,8 +436,22 @@ export async function fetchGitHubFile(owner: string, repo: string, path: string,
         // Silently return null for 404s - file doesn't exist, which is expected for optional files
         return null;
       }
+      if (response.status === 401) {
+        // 401 Unauthorized - token is missing, invalid, or expired
+        const hasToken = !!githubToken;
+        if (import.meta.env.DEV) {
+          console.warn(`[GitHub] 401 Unauthorized when fetching ${path} via raw URL. Token present: ${hasToken}. Please check your GitHub token in Settings.`);
+        }
+        // Return null instead of throwing - allow workflow to continue
+        return null;
+      }
       if (response.status === 403) {
-        throw new Error('Rate limited or repository is private. Try using a GitHub personal access token.');
+        // 403 Forbidden - rate limited or insufficient permissions
+        if (import.meta.env.DEV) {
+          console.warn(`[GitHub] 403 Forbidden when fetching ${path} via raw URL. This may be due to rate limiting or insufficient token permissions.`);
+        }
+        // Return null instead of throwing - allow workflow to continue
+        return null;
       }
       throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }

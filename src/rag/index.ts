@@ -23,15 +23,39 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
   // Delete existing vectors for this repo
   await deleteVectorsByRepo(repo.fullName);
   
+  // Get GitHub token first to ensure we have it for all API calls
+  const { getGitHubToken } = await import('../lib/github-service');
+  const githubToken = getGitHubToken();
+  
+  if (!githubToken) {
+    console.warn(`[RAG] ⚠️ No GitHub token found. Indexing will fail for private repositories or may hit rate limits.`);
+    console.warn(`[RAG] Please configure a GitHub token in Settings to enable RAG indexing.`);
+  } else {
+    console.debug(`[RAG] ✓ GitHub token found, using authenticated requests`);
+  }
+  
   // Get all files in the repository (increased depth to capture more files)
+  // Pass GitHub token to ensure authenticated requests
   const files = await listAllFiles(
     repo.owner,
     repo.name,
     '',
     repo.defaultBranch,
-    undefined,
+    githubToken || undefined, // Pass token explicitly
     5 // max depth (increased from 3 to capture more nested files)
   );
+  
+  if (files.length === 0) {
+    console.warn(`[RAG] ⚠️ No files found for ${repo.fullName}. This may indicate:`);
+    console.warn(`[RAG] 1. GitHub API access failed (401/403 errors) - check token validity`);
+    console.warn(`[RAG] 2. Repository is empty or has no code files`);
+    console.warn(`[RAG] 3. All files were filtered out (binary, minified, etc.)`);
+    if (githubToken) {
+      console.warn(`[RAG] Token is present but may be invalid or expired. Check token permissions (repo scope required).`);
+    }
+  } else {
+    console.debug(`[RAG] Found ${files.length} files to process`);
+  }
   
   // Files to exclude (too large, binary, or not useful)
   const excludePatterns = [
@@ -144,7 +168,8 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
         repo.owner,
         repo.name,
         filePath,
-        repo.defaultBranch
+        repo.defaultBranch,
+        githubToken || undefined // Pass token explicitly
       );
       
       if (content) {
@@ -173,6 +198,12 @@ export async function indexRepository(repo: SimpleRepo): Promise<number> {
   console.debug(`[RAG] Created ${allChunks.length} chunks`);
   
   if (allChunks.length === 0) {
+    console.warn(`[RAG] ⚠️ No chunks created for ${repo.fullName}. This means no files were successfully processed.`);
+    if (githubToken) {
+      console.warn(`[RAG] Token is present. Check if files were fetched successfully or if they were all filtered out.`);
+    } else {
+      console.warn(`[RAG] No token present. This is likely why indexing failed.`);
+    }
     return 0;
   }
   

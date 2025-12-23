@@ -150,9 +150,18 @@ Format as JSON:
 }`;
 
         // Index repository for RAG (async, don't wait)
-        indexRepository(repo).catch(err => 
-          console.warn(`[RepoAnalysis] RAG indexing failed for ${repo.fullName}:`, err)
-        );
+        // Note: This may fail silently if GitHub API access is unavailable (401/403 errors)
+        indexRepository(repo).catch(err => {
+          // Only log in dev mode to reduce noise - 401/403 errors are expected without valid token
+          if (import.meta.env.DEV) {
+            const isAuthError = err?.message?.includes('401') || err?.message?.includes('403') || err?.message?.includes('Unauthorized');
+            if (isAuthError) {
+              console.debug(`[RepoAnalysis] RAG indexing skipped for ${repo.fullName}: GitHub API access unavailable. Configure GitHub token in Settings to enable indexing.`);
+            } else {
+              console.warn(`[RepoAnalysis] RAG indexing failed for ${repo.fullName}:`, err);
+            }
+          }
+        });
 
         const aiAnalysis = await callLangChain(
           analysisPrompt,
